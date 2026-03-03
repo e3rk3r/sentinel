@@ -87,14 +87,45 @@ export function attachTouchWheelBridge({
       return
     }
     event.preventDefault()
-    dispatchTarget.dispatchEvent(
-      new WheelEvent('wheel', {
-        deltaY,
-        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
+
+    // Include the touch coordinates so xterm's mouse service can map the
+    // event to terminal cell coordinates.  Without valid clientX/clientY,
+    // getMouseReportCoords returns null and the mouse-protocol wheel
+    // handler silently drops the event.
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaY,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      bubbles: true,
+      cancelable: true,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      screenX: touch.screenX,
+      screenY: touch.screenY,
+    })
+
+    // Chrome (and some WebKit browsers) define the legacy `wheelDeltaY`
+    // property on all WheelEvent instances—even synthetic ones created via
+    // `new WheelEvent()`.  The value defaults to 0 because `wheelDeltaY`
+    // is not part of the WheelEventInit dictionary.
+    //
+    // xterm 6.x's VS Code-derived StandardWheelEvent class checks
+    // `typeof e.wheelDeltaY !== 'undefined'` and takes a legacy branch
+    // that divides wheelDeltaY by 120.  With wheelDeltaY = 0, the
+    // computed scroll delta is 0 and the SmoothScrollableElement does not
+    // scroll.
+    //
+    // Override with the value Chrome would produce for a real event:
+    // wheelDeltaY = -deltaY * 3  (pixel-mode convention).
+    try {
+      Object.defineProperty(wheelEvent, 'wheelDeltaY', {
+        value: -deltaY * 3,
+      })
+      Object.defineProperty(wheelEvent, 'wheelDeltaX', { value: 0 })
+    } catch {
+      // If the property is non-configurable (unlikely), fall through.
+    }
+
+    dispatchTarget.dispatchEvent(wheelEvent)
   }
 
   const onTouchEnd = (event: TouchEvent) => {

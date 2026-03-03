@@ -189,6 +189,51 @@ describe('attachTouchWheelBridge', () => {
     document.body.removeChild(host)
   })
 
+  it('includes touch coordinates and correct wheelDeltaY on synthetic events', () => {
+    const host = document.createElement('div')
+    const target = document.createElement('div')
+    host.appendChild(target)
+    document.body.appendChild(host)
+
+    const wheelSpy = vi.fn()
+    target.addEventListener('wheel', wheelSpy as EventListener)
+
+    const bridge = attachTouchWheelBridge({ host, dispatchTarget: target })
+
+    target.dispatchEvent(touchEvent('touchstart', [touch(4, 150, 300)]))
+    target.dispatchEvent(
+      touchEvent('touchmove', [
+        {
+          identifier: 4,
+          clientX: 152,
+          clientY: 280,
+          screenX: 152,
+          screenY: 280,
+        } as Touch,
+      ]),
+    )
+
+    expect(wheelSpy).toHaveBeenCalledTimes(1)
+    const event = wheelSpy.mock.calls[0][0] as WheelEvent
+
+    // Touch coordinates must be forwarded so xterm's getMouseReportCoords
+    // can map the event to terminal cell coordinates.
+    expect(event.clientX).toBe(152)
+    expect(event.clientY).toBe(280)
+
+    // deltaY should be positive (swipe up = scroll down)
+    expect(event.deltaY).toBe(20)
+
+    // wheelDeltaY must be overridden for xterm 6.x's StandardWheelEvent
+    // legacy branch (wheelDeltaY / 120).
+    expect((event as unknown as Record<string, unknown>).wheelDeltaY).toBe(
+      -20 * 3,
+    )
+
+    bridge.dispose()
+    document.body.removeChild(host)
+  })
+
   it('prevents default on touchstart when keyboard is visible', () => {
     const host = document.createElement('div')
     const target = document.createElement('div')
