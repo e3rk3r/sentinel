@@ -41,9 +41,10 @@ type collectSessionState struct {
 	bestPreviewAt     time.Time
 	bestPreviewPaneID string
 
-	anyPaneChanged   bool
-	anyWindowChanged bool
-	timelineChanged  bool
+	anyPaneChanged       bool
+	anyWindowChanged     bool
+	activeWindowSwitched bool
+	timelineChanged      bool
 }
 
 type paneTailSnapshot struct {
@@ -565,6 +566,9 @@ func (c *collectSessionState) collectWindows() error {
 		if windowChanged {
 			windowRev++
 			c.anyWindowChanged = true
+		}
+		if hadPrev && prev.Active != win.Active {
+			c.activeWindowSwitched = true
 		}
 		if windowRev == 0 {
 			windowRev = 1

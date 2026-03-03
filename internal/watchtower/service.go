@@ -240,9 +240,10 @@ func (s *Service) collectOnce(ctx context.Context) (err error) {
 }
 
 type collectSummary struct {
-	activeSessions          []string
-	changedSessions         []string
-	timelineChangedSessions map[string]struct{}
+	activeSessions              []string
+	changedSessions             []string
+	activeWindowChangedSessions []string
+	timelineChangedSessions     map[string]struct{}
 }
 
 func (s *Service) prunePresenceBestEffort(ctx context.Context) {
@@ -269,7 +270,7 @@ func (s *Service) collectSessionsProjection(ctx context.Context, sessions []tmux
 		timelineChangedSessions: make(map[string]struct{}, len(sessions)),
 	}
 	for _, sess := range sessions {
-		keep, changed, timelineChanged, collectErr := s.collectSession(ctx, sess)
+		keep, changed, timelineChanged, activeWindowSwitched, collectErr := s.collectSession(ctx, sess)
 		if collectErr != nil {
 			slog.Warn("watchtower collect session failed", "session", sess.Name, "err", collectErr)
 		}
@@ -279,6 +280,9 @@ func (s *Service) collectSessionsProjection(ctx context.Context, sessions []tmux
 		summary.activeSessions = append(summary.activeSessions, sess.Name)
 		if changed {
 			summary.changedSessions = append(summary.changedSessions, sess.Name)
+		}
+		if activeWindowSwitched {
+			summary.activeWindowChangedSessions = append(summary.activeWindowChangedSessions, sess.Name)
 		}
 		if timelineChanged {
 			summary.timelineChangedSessions[sess.Name] = struct{}{}
@@ -345,6 +349,15 @@ func (s *Service) publishCollectEvents(ctx context.Context, summary collectSumma
 			"sessions":         summary.changedSessions,
 			"sessionPatches":   sessionPatches,
 			"inspectorPatches": inspectorPatches,
+		})
+	}
+
+	// Notify the frontend that the active window changed externally so it
+	// can schedule a refreshInspector and reconcile any stale overrides.
+	for _, sessionName := range summary.activeWindowChangedSessions {
+		s.options.Publish(events.TypeTmuxInspector, map[string]any{
+			"session": sessionName,
+			"action":  "active-window-changed",
 		})
 	}
 
@@ -420,19 +433,20 @@ func (s *Service) buildInspectorActivityPatches(ctx context.Context, sessionName
 	return patches
 }
 
-func (s *Service) collectSession(ctx context.Context, sess tmux.Session) (bool, bool, bool, error) {
+// collectSession returns (keep, changed, timelineChanged, activeWindowSwitched, err).
+func (s *Service) collectSession(ctx context.Context, sess tmux.Session) (bool, bool, bool, bool, error) {
 	state, keep, err := s.prepareCollectSessionState(ctx, sess)
 	if err != nil {
-		return keep, false, false, err
+		return keep, false, false, false, err
 	}
 	if !keep {
-		return false, false, false, nil
+		return false, false, false, false, nil
 	}
 	sessionChanged, err := state.collect()
 	if err != nil {
-		return true, false, false, err
+		return true, false, false, false, err
 	}
-	return true, sessionChanged, state.timelineChanged, nil
+	return true, sessionChanged, state.timelineChanged, state.activeWindowSwitched, nil
 }
 
 func (s *Service) currentGlobalRev(ctx context.Context) (int64, error) {

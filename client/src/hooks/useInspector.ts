@@ -138,10 +138,9 @@ export function useInspector(options: UseInspectorOptions) {
   const inspectorLoadingRef = useRef(false)
   const activeWindowOverrideRef = useRef<number | null>(null)
   const activePaneOverrideRef = useRef<string | null>(null)
-  // Timestamp of the last UI-initiated override (selectWindow / selectPane).
-  // Used to protect optimistic overrides from being cleared by stale
-  // watchtower patches that arrive before the API call has propagated.
-  const overrideSetAtRef = useRef(0)
+  // Tracks in-flight selectWindow / selectPane API calls. While > 0, the
+  // server state may be stale relative to the optimistic override.
+  const selectInFlightRef = useRef(0)
 
   // Sync refs
   useEffect(() => {
@@ -501,47 +500,22 @@ export function useInspector(options: UseInspectorOptions) {
         samePaneProjection(prev, merged.panes) ? prev : merged.panes,
       )
 
-      // Grace period: after a UI click (selectWindow / selectPane), stale
-      // watchtower patches may arrive before the API call propagates. During
-      // the grace window we only clear the override when the overridden
-      // window/pane was removed, not on active-index divergence.
-      const OVERRIDE_GRACE_MS = 2_000
-      const withinGrace =
-        Date.now() - overrideSetAtRef.current < OVERRIDE_GRACE_MS
-
       const windowOverride = activeWindowOverrideRef.current
-      if (windowOverride !== null) {
-        const overrideStillExists = merged.windows.some(
+      if (
+        windowOverride !== null &&
+        !merged.windows.some(
           (windowInfo) => windowInfo.index === windowOverride,
         )
-        if (!overrideStillExists) {
-          setActiveWindowIndexOverride(null)
-        } else if (!withinGrace) {
-          const serverActiveWindow =
-            merged.windows.find((w) => w.active)?.index ?? null
-          if (
-            serverActiveWindow !== null &&
-            serverActiveWindow !== windowOverride
-          ) {
-            setActiveWindowIndexOverride(null)
-          }
-        }
+      ) {
+        setActiveWindowIndexOverride(null)
       }
 
       const paneOverride = activePaneOverrideRef.current
-      if (paneOverride !== null) {
-        const overrideStillExists = merged.panes.some(
-          (paneInfo) => paneInfo.paneId === paneOverride,
-        )
-        if (!overrideStillExists) {
-          setActivePaneIDOverride(null)
-        } else if (!withinGrace) {
-          const serverActivePane =
-            merged.panes.find((p) => p.active)?.paneId ?? null
-          if (serverActivePane !== null && serverActivePane !== paneOverride) {
-            setActivePaneIDOverride(null)
-          }
-        }
+      if (
+        paneOverride !== null &&
+        !merged.panes.some((paneInfo) => paneInfo.paneId === paneOverride)
+      ) {
+        setActivePaneIDOverride(null)
       }
 
       return true
@@ -610,12 +584,14 @@ export function useInspector(options: UseInspectorOptions) {
 
         let keepWindowOverride =
           windowOverride !== null &&
+          selectInFlightRef.current > 0 &&
           fetchedActiveWindow !== windowOverride &&
           merged.windows.some(
             (windowInfo) => windowInfo.index === windowOverride,
           )
         const keepPaneOverride =
           paneOverride !== null &&
+          selectInFlightRef.current > 0 &&
           fetchedActivePane !== paneOverride &&
           merged.panes.some((paneInfo) => paneInfo.paneId === paneOverride)
         if (keepPaneOverride) {
@@ -669,7 +645,7 @@ export function useInspector(options: UseInspectorOptions) {
       if (!active) return
       if (activeWindowOverrideRef.current === windowIndex) return
       setInspectorError('')
-      overrideSetAtRef.current = Date.now()
+      selectInFlightRef.current += 1
       setActiveWindowIndexOverride(windowIndex)
       const preferredPaneID =
         panes.find((p) => p.windowIndex === windowIndex && p.active)?.paneId ??
@@ -683,18 +659,24 @@ export function useInspector(options: UseInspectorOptions) {
         setPanes((prev) =>
           prev.map((p) => ({ ...p, active: p.paneId === preferredPaneID })),
         )
+      const gen = selectInFlightRef.current
       void api<void>(
         `/api/tmux/sessions/${encodeURIComponent(active)}/select-window`,
         { method: 'POST', body: JSON.stringify({ index: windowIndex }) },
-      ).catch((error) => {
-        const msg =
-          error instanceof Error ? error.message : 'failed to switch window'
-        setInspectorError(msg)
-        pushErrorToast('Switch Window', msg)
-        setActiveWindowIndexOverride(null)
-        setActivePaneIDOverride(null)
-        void refreshInspector(active, { background: true })
-      })
+      )
+        .then(() => {
+          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+        })
+        .catch((error) => {
+          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+          const msg =
+            error instanceof Error ? error.message : 'failed to switch window'
+          setInspectorError(msg)
+          pushErrorToast('Switch Window', msg)
+          setActiveWindowIndexOverride(null)
+          setActivePaneIDOverride(null)
+          void refreshInspector(active, { background: true })
+        })
     },
     [api, panes, pushErrorToast, refreshInspector, tabsStateRef],
   )
@@ -707,7 +689,7 @@ export function useInspector(options: UseInspectorOptions) {
       if (activePaneOverrideRef.current === paneID) return
       const paneInfo = panes.find((p) => p.paneId === paneID)
       setInspectorError('')
-      overrideSetAtRef.current = Date.now()
+      selectInFlightRef.current += 1
       setActivePaneIDOverride(paneID)
       if (paneInfo) setActiveWindowIndexOverride(paneInfo.windowIndex)
       setPanes((prev) =>
@@ -717,18 +699,24 @@ export function useInspector(options: UseInspectorOptions) {
         setWindows((prev) =>
           prev.map((w) => ({ ...w, active: w.index === paneInfo.windowIndex })),
         )
+      const gen = selectInFlightRef.current
       void api<void>(
         `/api/tmux/sessions/${encodeURIComponent(active)}/select-pane`,
         { method: 'POST', body: JSON.stringify({ paneId: paneID }) },
-      ).catch((error) => {
-        const msg =
-          error instanceof Error ? error.message : 'failed to switch pane'
-        setInspectorError(msg)
-        pushErrorToast('Switch Pane', msg)
-        setActiveWindowIndexOverride(null)
-        setActivePaneIDOverride(null)
-        void refreshInspector(active, { background: true })
-      })
+      )
+        .then(() => {
+          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+        })
+        .catch((error) => {
+          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+          const msg =
+            error instanceof Error ? error.message : 'failed to switch pane'
+          setInspectorError(msg)
+          pushErrorToast('Switch Pane', msg)
+          setActiveWindowIndexOverride(null)
+          setActivePaneIDOverride(null)
+          void refreshInspector(active, { background: true })
+        })
     },
     [api, panes, pushErrorToast, refreshInspector, tabsStateRef],
   )
