@@ -247,22 +247,36 @@ describe('useInspector – refreshInspector override reconciliation', () => {
   })
 
   it('preserves override when mutation is in-flight', async () => {
-    // API that never resolves select-window (simulating in-flight)
+    // API that never resolves select-window (simulating in-flight), and
+    // returns stale data for /windows (window 0 active) until resolved.
     let resolveSelectWindow: (() => void) | null = null
+    let serverConfirmed = false
     const api = vi.fn((url: string) => {
       if (typeof url === 'string' && url.includes('/windows')) {
         return Promise.resolve({
           windows: [
-            makeWindow({ index: 0, active: true }),
-            makeWindow({ index: 1, name: 'alt', active: false }),
+            makeWindow({ index: 0, active: !serverConfirmed }),
+            makeWindow({
+              index: 1,
+              name: 'alt',
+              active: serverConfirmed,
+            }),
           ],
         })
       }
       if (typeof url === 'string' && url.includes('/panes')) {
         return Promise.resolve({
           panes: [
-            makePane({ windowIndex: 0, paneId: '%1', active: true }),
-            makePane({ windowIndex: 1, paneId: '%2', active: false }),
+            makePane({
+              windowIndex: 0,
+              paneId: '%1',
+              active: !serverConfirmed,
+            }),
+            makePane({
+              windowIndex: 1,
+              paneId: '%2',
+              active: serverConfirmed,
+            }),
           ],
         })
       }
@@ -296,17 +310,17 @@ describe('useInspector – refreshInspector override reconciliation', () => {
     // Override should be PRESERVED because selectInFlightRef > 0
     expect(result.current.activeWindowIndexOverride).toBe(1)
 
-    // Now resolve the select-window API call
+    // Now resolve the select-window API call and mark server as confirmed
     await act(async () => {
+      serverConfirmed = true
       resolveSelectWindow?.()
       await vi.waitFor(() => {
-        // The .then() handler should have cleared selectInFlightRef
         expect(resolveSelectWindow).not.toBeNull()
       })
     })
 
-    // After resolving, a new refreshInspector should clear the override
-    // since selectInFlightRef is now 0
+    // After the server confirms (window 1 now active), refreshInspector
+    // clears the override and resets selectInFlightRef
     await act(async () => {
       await result.current.refreshInspector('dev')
     })

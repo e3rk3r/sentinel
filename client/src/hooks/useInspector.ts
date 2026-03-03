@@ -604,6 +604,15 @@ export function useInspector(options: UseInspectorOptions) {
         if (!keepPaneOverride) {
           setActivePaneIDOverride(null)
         }
+        // Reset in-flight flag once the server has confirmed the overrides.
+        // This re-enables external-change detection for future refreshes.
+        if (
+          selectInFlightRef.current > 0 &&
+          !keepWindowOverride &&
+          !keepPaneOverride
+        ) {
+          selectInFlightRef.current = 0
+        }
       } catch (error) {
         if (gen !== inspectorGenerationRef.current) return
         if (pendingCreateSessionsRef.current.has(session)) {
@@ -664,20 +673,16 @@ export function useInspector(options: UseInspectorOptions) {
       void api<void>(
         `/api/tmux/sessions/${encodeURIComponent(active)}/select-window`,
         { method: 'POST', body: JSON.stringify({ index: windowIndex }) },
-      )
-        .then(() => {
-          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
-        })
-        .catch((error) => {
-          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
-          const msg =
-            error instanceof Error ? error.message : 'failed to switch window'
-          setInspectorError(msg)
-          pushErrorToast('Switch Window', msg)
-          setActiveWindowIndexOverride(null)
-          setActivePaneIDOverride(null)
-          void refreshInspector(active, { background: true })
-        })
+      ).catch((error) => {
+        if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+        const msg =
+          error instanceof Error ? error.message : 'failed to switch window'
+        setInspectorError(msg)
+        pushErrorToast('Switch Window', msg)
+        setActiveWindowIndexOverride(null)
+        setActivePaneIDOverride(null)
+        void refreshInspector(active, { background: true })
+      })
     },
     [api, panes, pushErrorToast, refreshInspector, tabsStateRef],
   )
@@ -705,20 +710,16 @@ export function useInspector(options: UseInspectorOptions) {
       void api<void>(
         `/api/tmux/sessions/${encodeURIComponent(active)}/select-pane`,
         { method: 'POST', body: JSON.stringify({ paneId: paneID }) },
-      )
-        .then(() => {
-          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
-        })
-        .catch((error) => {
-          if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
-          const msg =
-            error instanceof Error ? error.message : 'failed to switch pane'
-          setInspectorError(msg)
-          pushErrorToast('Switch Pane', msg)
-          setActiveWindowIndexOverride(null)
-          setActivePaneIDOverride(null)
-          void refreshInspector(active, { background: true })
-        })
+      ).catch((error) => {
+        if (selectInFlightRef.current === gen) selectInFlightRef.current = 0
+        const msg =
+          error instanceof Error ? error.message : 'failed to switch pane'
+        setInspectorError(msg)
+        pushErrorToast('Switch Pane', msg)
+        setActiveWindowIndexOverride(null)
+        setActivePaneIDOverride(null)
+        void refreshInspector(active, { background: true })
+      })
     },
     [api, panes, pushErrorToast, refreshInspector, tabsStateRef],
   )
