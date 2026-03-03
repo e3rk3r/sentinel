@@ -269,9 +269,11 @@ export function useTerminalTmux({
         runtime.touchWheelDispose.dispose()
         runtime.touchWheelDispose = { dispose: () => undefined }
         if (isMobileRef.current && allowWheelInAlternateBuffer) {
+          const screen =
+            runtime.terminal.element.querySelector<HTMLElement>('.xterm-screen')
           runtime.touchWheelDispose = attachTouchWheelBridge({
             host,
-            dispatchTarget: runtime.terminal.element,
+            dispatchTarget: screen ?? runtime.terminal.element,
           })
         }
         return
@@ -341,7 +343,8 @@ export function useTerminalTmux({
         runtime.touchWheelDispose.dispose()
         runtime.touchWheelDispose = { dispose: () => undefined }
         if (isMobileRef.current && allowWheelInAlternateBuffer) {
-          const dispatchTarget = host.querySelector<HTMLElement>('.xterm')
+          const dispatchTarget =
+            host.querySelector<HTMLElement>('.xterm-screen')
           runtime.touchWheelDispose = attachTouchWheelBridge({
             host,
             dispatchTarget: dispatchTarget ?? host,
@@ -513,11 +516,7 @@ export function useTerminalTmux({
         // Unexpected close — schedule auto-reconnect with backoff
         const delay = runtime.reconnect.next()
         const delaySec = Math.ceil(delay / 1000)
-        setRuntimeStatus(
-          runtime,
-          'connecting',
-          `reconnecting in ${delaySec}s`,
-        )
+        setRuntimeStatus(runtime, 'connecting', `reconnecting in ${delaySec}s`)
         runtime.reconnectTimer = window.setTimeout(() => {
           runtime.reconnectTimer = null
           if (isRuntimeCurrent(runtime, generation)) {
@@ -968,9 +967,10 @@ export function useTerminalTmux({
       if (!host || !terminalElement) {
         continue
       }
+      const screen = terminalElement.querySelector<HTMLElement>('.xterm-screen')
       runtime.touchWheelDispose = attachTouchWheelBridge({
         host,
-        dispatchTarget: terminalElement,
+        dispatchTarget: screen ?? terminalElement,
       })
     }
   }, [allowWheelInAlternateBuffer, isMobile])

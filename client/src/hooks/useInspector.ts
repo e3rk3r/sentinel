@@ -498,21 +498,36 @@ export function useInspector(options: UseInspectorOptions) {
       )
 
       const windowOverride = activeWindowOverrideRef.current
-      if (
-        windowOverride !== null &&
-        !merged.windows.some(
+      if (windowOverride !== null) {
+        const serverActiveWindow =
+          merged.windows.find((w) => w.active)?.index ?? null
+        const overrideStillExists = merged.windows.some(
           (windowInfo) => windowInfo.index === windowOverride,
         )
-      ) {
-        setActiveWindowIndexOverride(null)
+        // Clear the override when the overridden window was removed OR when
+        // the server-side active window changed externally (e.g. user ran
+        // `tmux select-window` in the terminal).
+        if (
+          !overrideStillExists ||
+          (serverActiveWindow !== null && serverActiveWindow !== windowOverride)
+        ) {
+          setActiveWindowIndexOverride(null)
+        }
       }
 
       const paneOverride = activePaneOverrideRef.current
-      if (
-        paneOverride !== null &&
-        !merged.panes.some((paneInfo) => paneInfo.paneId === paneOverride)
-      ) {
-        setActivePaneIDOverride(null)
+      if (paneOverride !== null) {
+        const serverActivePane =
+          merged.panes.find((p) => p.active)?.paneId ?? null
+        const overrideStillExists = merged.panes.some(
+          (paneInfo) => paneInfo.paneId === paneOverride,
+        )
+        if (
+          !overrideStillExists ||
+          (serverActivePane !== null && serverActivePane !== paneOverride)
+        ) {
+          setActivePaneIDOverride(null)
+        }
       }
 
       return true

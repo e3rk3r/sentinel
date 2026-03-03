@@ -269,9 +269,15 @@
   overscroll-behavior: contain;
 }
 
+/* xterm 6.x uses a VS Code SmoothScrollableElement for scrolling */
+.xterm .xterm-scrollable-element {
+  overscroll-behavior: contain;
+}
+
 @media (max-width: 767px) {
   .xterm,
-  .xterm .xterm-viewport {
+  .xterm .xterm-viewport,
+  .xterm .xterm-scrollable-element {
     touch-action: none;
     overscroll-behavior: none;
     -webkit-touch-callout: none;
