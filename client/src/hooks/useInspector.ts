@@ -138,6 +138,10 @@ export function useInspector(options: UseInspectorOptions) {
   const inspectorLoadingRef = useRef(false)
   const activeWindowOverrideRef = useRef<number | null>(null)
   const activePaneOverrideRef = useRef<string | null>(null)
+  // Timestamp of the last UI-initiated override (selectWindow / selectPane).
+  // Used to protect optimistic overrides from being cleared by stale
+  // watchtower patches that arrive before the API call has propagated.
+  const overrideSetAtRef = useRef(0)
 
   // Sync refs
   useEffect(() => {
@@ -497,36 +501,46 @@ export function useInspector(options: UseInspectorOptions) {
         samePaneProjection(prev, merged.panes) ? prev : merged.panes,
       )
 
+      // Grace period: after a UI click (selectWindow / selectPane), stale
+      // watchtower patches may arrive before the API call propagates. During
+      // the grace window we only clear the override when the overridden
+      // window/pane was removed, not on active-index divergence.
+      const OVERRIDE_GRACE_MS = 2_000
+      const withinGrace =
+        Date.now() - overrideSetAtRef.current < OVERRIDE_GRACE_MS
+
       const windowOverride = activeWindowOverrideRef.current
       if (windowOverride !== null) {
-        const serverActiveWindow =
-          merged.windows.find((w) => w.active)?.index ?? null
         const overrideStillExists = merged.windows.some(
           (windowInfo) => windowInfo.index === windowOverride,
         )
-        // Clear the override when the overridden window was removed OR when
-        // the server-side active window changed externally (e.g. user ran
-        // `tmux select-window` in the terminal).
-        if (
-          !overrideStillExists ||
-          (serverActiveWindow !== null && serverActiveWindow !== windowOverride)
-        ) {
+        if (!overrideStillExists) {
           setActiveWindowIndexOverride(null)
+        } else if (!withinGrace) {
+          const serverActiveWindow =
+            merged.windows.find((w) => w.active)?.index ?? null
+          if (
+            serverActiveWindow !== null &&
+            serverActiveWindow !== windowOverride
+          ) {
+            setActiveWindowIndexOverride(null)
+          }
         }
       }
 
       const paneOverride = activePaneOverrideRef.current
       if (paneOverride !== null) {
-        const serverActivePane =
-          merged.panes.find((p) => p.active)?.paneId ?? null
         const overrideStillExists = merged.panes.some(
           (paneInfo) => paneInfo.paneId === paneOverride,
         )
-        if (
-          !overrideStillExists ||
-          (serverActivePane !== null && serverActivePane !== paneOverride)
-        ) {
+        if (!overrideStillExists) {
           setActivePaneIDOverride(null)
+        } else if (!withinGrace) {
+          const serverActivePane =
+            merged.panes.find((p) => p.active)?.paneId ?? null
+          if (serverActivePane !== null && serverActivePane !== paneOverride) {
+            setActivePaneIDOverride(null)
+          }
         }
       }
 
@@ -655,6 +669,7 @@ export function useInspector(options: UseInspectorOptions) {
       if (!active) return
       if (activeWindowOverrideRef.current === windowIndex) return
       setInspectorError('')
+      overrideSetAtRef.current = Date.now()
       setActiveWindowIndexOverride(windowIndex)
       const preferredPaneID =
         panes.find((p) => p.windowIndex === windowIndex && p.active)?.paneId ??
@@ -692,6 +707,7 @@ export function useInspector(options: UseInspectorOptions) {
       if (activePaneOverrideRef.current === paneID) return
       const paneInfo = panes.find((p) => p.paneId === paneID)
       setInspectorError('')
+      overrideSetAtRef.current = Date.now()
       setActivePaneIDOverride(paneID)
       if (paneInfo) setActiveWindowIndexOverride(paneInfo.windowIndex)
       setPanes((prev) =>
