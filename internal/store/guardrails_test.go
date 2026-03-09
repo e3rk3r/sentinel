@@ -20,24 +20,32 @@ func TestGuardrailSchemaSeedsDefaultRules(t *testing.T) {
 		t.Fatalf("rules len = %d, want >= 2 defaults", len(rules))
 	}
 
-	foundSessionKill := false
-	foundPaneKillWarn := false
+	expected := map[string]struct {
+		mode  string
+		scope string
+	}{
+		"action.session.kill.confirm": {mode: GuardrailModeConfirm, scope: GuardrailScopeAction},
+		"action.pane.kill.warn":       {mode: GuardrailModeWarn, scope: GuardrailScopeAction},
+	}
+
+	found := make(map[string]bool, len(expected))
 	for _, rule := range rules {
-		switch rule.ID {
-		case "action.session.kill.confirm":
-			foundSessionKill = true
-			if rule.Mode != GuardrailModeConfirm {
-				t.Fatalf("session kill mode = %q, want confirm", rule.Mode)
-			}
-		case "action.pane.kill.warn":
-			foundPaneKillWarn = true
-			if rule.Mode != GuardrailModeWarn {
-				t.Fatalf("pane kill warn mode = %q, want warn", rule.Mode)
-			}
+		exp, ok := expected[rule.ID]
+		if !ok {
+			continue
+		}
+		found[rule.ID] = true
+		if rule.Mode != exp.mode {
+			t.Fatalf("rule %s mode = %q, want %q", rule.ID, rule.Mode, exp.mode)
+		}
+		if rule.Scope != exp.scope {
+			t.Fatalf("rule %s scope = %q, want %q", rule.ID, rule.Scope, exp.scope)
 		}
 	}
-	if !foundSessionKill || !foundPaneKillWarn {
-		t.Fatalf("missing default rules, sessionKill=%v paneKillWarn=%v", foundSessionKill, foundPaneKillWarn)
+	for id := range expected {
+		if !found[id] {
+			t.Fatalf("missing seed rule %s", id)
+		}
 	}
 }
 
@@ -97,6 +105,42 @@ func TestGuardrailRuleUpsert(t *testing.T) {
 	if found.Priority != 12 {
 		t.Fatalf("rule priority = %d, want 12", found.Priority)
 	}
+}
+
+func TestGuardrailScopeNormalizesToAction(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	defer func() { _ = s.Close() }()
+	ctx := context.Background()
+
+	if err := s.UpsertGuardrailRule(ctx, GuardrailRuleWrite{
+		ID:       "test.scope.normalize",
+		Name:     "Scope normalization test",
+		Scope:    "anything",
+		Pattern:  `test`,
+		Mode:     GuardrailModeBlock,
+		Severity: "error",
+		Message:  "blocked",
+		Enabled:  true,
+		Priority: 50,
+	}); err != nil {
+		t.Fatalf("UpsertGuardrailRule: %v", err)
+	}
+
+	rules, err := s.ListGuardrailRules(ctx)
+	if err != nil {
+		t.Fatalf("ListGuardrailRules: %v", err)
+	}
+	for _, r := range rules {
+		if r.ID == "test.scope.normalize" {
+			if r.Scope != GuardrailScopeAction {
+				t.Fatalf("scope = %q, want %q", r.Scope, GuardrailScopeAction)
+			}
+			return
+		}
+	}
+	t.Fatal("rule not found")
 }
 
 func TestGuardrailAuditInsertAndList(t *testing.T) {

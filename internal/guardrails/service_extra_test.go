@@ -44,7 +44,6 @@ func TestListRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRules: %v", err)
 	}
-	// Default rules should exist from schema seeding.
 	if len(rules) < 2 {
 		t.Fatalf("len(rules) = %d, want >= 2", len(rules))
 	}

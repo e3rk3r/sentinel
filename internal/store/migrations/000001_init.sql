@@ -364,8 +364,7 @@ INSERT OR IGNORE INTO guardrail_rules(
     20
 );
 
--- Normalize any legacy command-scope rules to action scope.
-UPDATE guardrail_rules SET scope = 'action' WHERE scope = 'command';
+-- Command scope is now a valid scope; no normalization needed.
 
 -- Default runbooks.
 INSERT OR IGNORE INTO ops_runbooks(

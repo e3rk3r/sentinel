@@ -129,12 +129,14 @@ func evaluateRuleMatch(rule store.GuardrailRule, action string, compiled map[str
 	if !rule.Enabled {
 		return "", false
 	}
-	if strings.TrimSpace(action) == "" {
-		return "", false
-	}
 
 	re, ok := compiled[rule.ID]
 	if !ok {
+		return "", false
+	}
+
+	action = strings.TrimSpace(action)
+	if action == "" {
 		return "", false
 	}
 	if !re.MatchString(action) {

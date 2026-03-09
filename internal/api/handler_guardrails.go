@@ -288,6 +288,7 @@ func (h *Handler) enforceGuardrail(
 		if err := h.guardrails.RecordAudit(ctx, input, decision, false, "blocked"); err != nil {
 			slog.Warn("guardrail audit write failed", "err", err)
 		}
+		h.orch.RecordGuardrailBlocked(ctx, input.Action, input.SessionName, input.PaneID, decision.Message, time.Now().UTC())
 		writeError(w, http.StatusConflict, "GUARDRAIL_BLOCKED", decision.Message, map[string]any{
 			"decision": decision,
 		})
