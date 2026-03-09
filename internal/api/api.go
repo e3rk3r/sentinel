@@ -19,6 +19,7 @@ import (
 	"github.com/opus-domini/sentinel/internal/alerts"
 	"github.com/opus-domini/sentinel/internal/events"
 	"github.com/opus-domini/sentinel/internal/guardrails"
+	"github.com/opus-domini/sentinel/internal/notify"
 	"github.com/opus-domini/sentinel/internal/runbook"
 	"github.com/opus-domini/sentinel/internal/security"
 	opsplane "github.com/opus-domini/sentinel/internal/services"
@@ -106,6 +107,7 @@ type opsRunbookRepo interface {
 type opsJobRepo interface {
 	ListOpsRunbookRuns(ctx context.Context, limit int) ([]store.OpsRunbookRun, error)
 	CreateOpsRunbookRun(ctx context.Context, runbookID string, at time.Time) (store.OpsRunbookRun, error)
+	CreateOpsRunbookRunWithParams(ctx context.Context, runbookID string, at time.Time, params map[string]string) (store.OpsRunbookRun, error)
 	// GetOpsRunbookRun is provided by runbook.Repo (embedded in handlerRepo).
 	DeleteOpsRunbookRun(ctx context.Context, runID string) error
 }
@@ -134,6 +136,12 @@ type sessionDirectoryRepo interface {
 	ListFrequentDirectories(ctx context.Context, limit int) ([]string, error)
 }
 
+type markerPatternsRepo interface {
+	ListMarkerPatterns(ctx context.Context) ([]store.MarkerPattern, error)
+	UpsertMarkerPattern(ctx context.Context, row store.MarkerPatternWrite) error
+	DeleteMarkerPattern(ctx context.Context, id string) error
+}
+
 // handlerRepo is the composite repository interface used by Handler.
 // It embeds runbook.Repo for async runbook execution (which provides
 // UpdateOpsRunbookRun, GetOpsRunbook, GetOpsRunbookRun, InsertActivityEvent).
@@ -148,6 +156,7 @@ type handlerRepo interface {
 	opsScheduleRepo
 	alertsActivityRepo
 	sessionDirectoryRepo
+	markerPatternsRepo
 }
 
 // Compile-time check: *store.Store satisfies handlerRepo.
@@ -161,6 +170,7 @@ type Handler struct {
 	repo       handlerRepo
 	orch       *opsOrchestrator
 	guardrails *guardrails.Service
+	notifier   *notify.Notifier
 	version    string
 	configPath string
 	timezone   string
@@ -237,8 +247,17 @@ func Register(
 	h.registerActivityRoutes(mux)
 	h.registerMetricsRoutes(mux)
 	h.registerGuardrailsRoutes(mux)
+	h.registerMarkersRoutes(mux)
 	h.registerSettingsRoutes(mux)
 	return h
+}
+
+// SetNotifier sets an optional webhook notifier for alert events.
+func (h *Handler) SetNotifier(n *notify.Notifier) {
+	if h == nil {
+		return
+	}
+	h.notifier = n
 }
 
 // Shutdown cancels in-flight runbook goroutines and waits for them.

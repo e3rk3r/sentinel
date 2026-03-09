@@ -39,6 +39,8 @@ type Config struct {
 	RunbookMaxConcurrent int
 	Watchtower           WatchtowerConfig
 	AlertThresholds      AlertThresholds
+	AlertWebhookURL      string
+	AlertWebhookEvents   []string
 }
 
 type WatchtowerConfig struct {
@@ -107,6 +109,17 @@ const defaultConfigContent = `# Sentinel configuration
 # Disk usage threshold percentage for alerts.
 # Environment variable: SENTINEL_ALERT_DISK_PERCENT
 # disk_percent = 95.0
+
+# Webhook URL for alert notifications. When set, HTTP POST requests
+# are sent for alert lifecycle events.
+# Environment variable: SENTINEL_ALERT_WEBHOOK_URL
+# webhook_url = ""
+
+# Comma-separated list of events that trigger webhooks.
+# Supported: "alert.created", "alert.resolved", "alert.acked"
+# Default (when URL is set): "alert.created,alert.resolved"
+# Environment variable: SENTINEL_ALERT_WEBHOOK_EVENTS
+# webhook_events = "alert.created,alert.resolved"
 
 [watchtower]
 # Enable the watchtower subsystem (background activity projection + unread journal).
@@ -233,6 +246,11 @@ func applyCoreConfig(cfg *Config, file map[string]string) {
 		file,
 		cfg.RunbookMaxConcurrent,
 	)
+
+	cfg.AlertWebhookURL = readRawEnvOrFile("SENTINEL_ALERT_WEBHOOK_URL", "alert_webhook_url", file)
+	if evts := readRawEnvOrFile("SENTINEL_ALERT_WEBHOOK_EVENTS", "alert_webhook_events", file); evts != "" {
+		cfg.AlertWebhookEvents = splitCSV(evts)
+	}
 }
 
 func applyWatchtowerConfig(cfg *Config, file map[string]string) {
@@ -375,6 +393,8 @@ type tomlAlerts struct {
 	CPUPercent  *float64 `toml:"cpu_percent"`
 	MemPercent  *float64 `toml:"mem_percent"`
 	DiskPercent *float64 `toml:"disk_percent"`
+	WebhookURL  *string  `toml:"webhook_url"`
+	WebhookEvts *string  `toml:"webhook_events"`
 }
 
 // tomlWatchtower maps the [watchtower] section of the config file.
@@ -417,6 +437,8 @@ type tomlConfig struct {
 	AlertCPUPercent          *float64 `toml:"alert_cpu_percent"`
 	AlertMemPercent          *float64 `toml:"alert_mem_percent"`
 	AlertDiskPercent         *float64 `toml:"alert_disk_percent"`
+	AlertWebhookURL          *string  `toml:"alert_webhook_url"`
+	AlertWebhookEvents       *string  `toml:"alert_webhook_events"`
 }
 
 // flatten converts the parsed TOML config into a flat key-value map.
@@ -464,6 +486,8 @@ func (tc *tomlConfig) flatten() map[string]string {
 	setFloat("alert_cpu_percent", tc.AlertCPUPercent)
 	setFloat("alert_mem_percent", tc.AlertMemPercent)
 	setFloat("alert_disk_percent", tc.AlertDiskPercent)
+	setStr("alert_webhook_url", tc.AlertWebhookURL)
+	setStr("alert_webhook_events", tc.AlertWebhookEvents)
 
 	// Sectioned keys override legacy flat keys.
 	setStr("listen", tc.Server.Listen)
@@ -478,6 +502,8 @@ func (tc *tomlConfig) flatten() map[string]string {
 	setFloat("alert_cpu_percent", tc.Alerts.CPUPercent)
 	setFloat("alert_mem_percent", tc.Alerts.MemPercent)
 	setFloat("alert_disk_percent", tc.Alerts.DiskPercent)
+	setStr("alert_webhook_url", tc.Alerts.WebhookURL)
+	setStr("alert_webhook_events", tc.Alerts.WebhookEvts)
 
 	setBool("watchtower_enabled", tc.Watchtower.Enabled)
 	setStr("watchtower_tick_interval", tc.Watchtower.TickInterval)

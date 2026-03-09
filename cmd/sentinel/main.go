@@ -22,6 +22,7 @@ import (
 	"github.com/opus-domini/sentinel/internal/config"
 	"github.com/opus-domini/sentinel/internal/events"
 	"github.com/opus-domini/sentinel/internal/httpui"
+	"github.com/opus-domini/sentinel/internal/notify"
 	"github.com/opus-domini/sentinel/internal/scheduler"
 	"github.com/opus-domini/sentinel/internal/security"
 	"github.com/opus-domini/sentinel/internal/services"
@@ -93,6 +94,11 @@ func serve() int {
 		watchtowerService.Start(context.Background())
 	}
 
+	alertNotifier := notify.New(cfg.AlertWebhookURL, cfg.AlertWebhookEvents)
+	if alertNotifier != nil {
+		slog.Info("alert webhook enabled", "url", cfg.AlertWebhookURL)
+	}
+
 	healthChecker := services.NewHealthChecker(opsManager, st, func(eventType string, payload map[string]any) {
 		eventHub.Publish(events.NewEvent(eventType, payload))
 	}, 0, services.AlertThresholds{
@@ -101,6 +107,7 @@ func serve() int {
 		DiskPercent: cfg.AlertThresholds.DiskPercent,
 	})
 	healthChecker.SetActivityRepo(st)
+	healthChecker.SetNotifier(alertNotifier)
 	healthChecker.Start(context.Background())
 
 	schedulerService := scheduler.New(st, st, scheduler.Options{
@@ -124,6 +131,7 @@ func serve() int {
 
 	configPath := filepath.Join(cfg.DataDir, "config.toml")
 	apiHandler := api.Register(mux, guard, st, opsManager, eventHub, currentVersion(), configPath, cfg.Timezone, cfg.Locale, cfg.RunbookMaxConcurrent)
+	apiHandler.SetNotifier(alertNotifier)
 
 	exitCode := run(cfg, mux)
 

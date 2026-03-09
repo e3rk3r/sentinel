@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/opus-domini/sentinel/internal/activity"
 	"github.com/opus-domini/sentinel/internal/alerts"
+	"github.com/opus-domini/sentinel/internal/notify"
 )
 
 const defaultHealthInterval = 30 * time.Second
@@ -45,6 +47,7 @@ type HealthChecker struct {
 	manager    *Manager
 	alerts     healthAlertsRepo
 	activity   healthActivityRepo
+	notifier   *notify.Notifier
 	publish    HealthPublisher
 	interval   time.Duration
 	thresholds AlertThresholds
@@ -84,6 +87,12 @@ func NewHealthChecker(mgr *Manager, alertsRepo healthAlertsRepo, publish HealthP
 // alert lifecycle events in the ops timeline. Must be called before Start.
 func (hc *HealthChecker) SetActivityRepo(repo healthActivityRepo) {
 	hc.activity = repo
+}
+
+// SetNotifier sets an optional webhook notifier for alert events.
+// Must be called before Start.
+func (hc *HealthChecker) SetNotifier(n *notify.Notifier) {
+	hc.notifier = n
 }
 
 // Start begins the periodic health check loop.
@@ -238,6 +247,12 @@ func (hc *HealthChecker) raiseAlert(ctx context.Context, write alerts.AlertWrite
 			slog.Warn("health check: record alert.created event failed", "error", teErr)
 		}
 	}
+	hc.notifier.SendAsync(notify.AlertWebhookPayload{
+		Event:     "alert.created",
+		Alert:     alert,
+		Host:      hostname(),
+		Timestamp: write.CreatedAt,
+	})
 	if hc.publish != nil {
 		hc.publish("ops.alerts.updated", map[string]any{
 			"globalRev": time.Now().UTC().UnixMilli(),
@@ -271,12 +286,26 @@ func (hc *HealthChecker) resolveAlert(ctx context.Context, dedupeKey string, at 
 			slog.Warn("health check: record alert.resolved event failed", "error", teErr)
 		}
 	}
+	hc.notifier.SendAsync(notify.AlertWebhookPayload{
+		Event:     "alert.resolved",
+		Alert:     alert,
+		Host:      hostname(),
+		Timestamp: at,
+	})
 	if hc.publish != nil {
 		hc.publish("ops.alerts.updated", map[string]any{
 			"globalRev": time.Now().UTC().UnixMilli(),
 			"alert":     alert,
 		})
 	}
+}
+
+func hostname() string {
+	h, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return h
 }
 
 func marshalMetadata(v any) string {

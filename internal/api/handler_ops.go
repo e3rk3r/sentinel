@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/opus-domini/sentinel/internal/activity"
 	"github.com/opus-domini/sentinel/internal/alerts"
 	"github.com/opus-domini/sentinel/internal/events"
+	"github.com/opus-domini/sentinel/internal/notify"
 	opsplane "github.com/opus-domini/sentinel/internal/services"
 	"github.com/opus-domini/sentinel/internal/store"
 )
@@ -255,6 +257,14 @@ func (h *Handler) ackOpsAlert(w http.ResponseWriter, r *http.Request) {
 			"event":     timelineEvent,
 		})
 	}
+
+	host, _ := os.Hostname()
+	h.notifier.SendAsync(notify.AlertWebhookPayload{
+		Event:     "alert.acked",
+		Alert:     alert,
+		Host:      host,
+		Timestamp: now,
+	})
 
 	writeData(w, http.StatusOK, map[string]any{
 		"alert":         alert,
