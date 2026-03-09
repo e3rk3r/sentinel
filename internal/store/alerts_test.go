@@ -397,6 +397,96 @@ func TestDeleteNonResolvedAlertFails(t *testing.T) {
 	})
 }
 
+func TestBulkAckAlerts(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := context.Background()
+	base := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	// Seed 3 open alerts.
+	var ids []int64
+	for i := range 3 {
+		alert, err := s.UpsertAlert(ctx, alerts.AlertWrite{
+			DedupeKey: "bulk:" + string(rune('a'+i)),
+			Source:    "test",
+			Title:     "Bulk " + string(rune('A'+i)),
+			Severity:  "error",
+			CreatedAt: base.Add(time.Duration(i) * time.Second),
+		})
+		if err != nil {
+			t.Fatalf("UpsertAlert[%d]: %v", i, err)
+		}
+		ids = append(ids, alert.ID)
+	}
+
+	t.Run("ack all three", func(t *testing.T) {
+		acked, err := s.BulkAckAlerts(ctx, ids, base.Add(time.Minute))
+		if err != nil {
+			t.Fatalf("BulkAckAlerts: %v", err)
+		}
+		if len(acked) != 3 {
+			t.Fatalf("len(acked) = %d, want 3", len(acked))
+		}
+		for _, a := range acked {
+			if a.Status != alerts.StatusAcked {
+				t.Fatalf("alert %d status = %q, want acked", a.ID, a.Status)
+			}
+		}
+	})
+
+	t.Run("re-ack is idempotent", func(t *testing.T) {
+		acked, err := s.BulkAckAlerts(ctx, ids, base.Add(2*time.Minute))
+		if err != nil {
+			t.Fatalf("BulkAckAlerts (re-ack): %v", err)
+		}
+		// SQLite counts all matched rows even when values don't change,
+		// so re-acking returns the same alerts.
+		if len(acked) != 3 {
+			t.Fatalf("len(acked) = %d, want 3", len(acked))
+		}
+		for _, a := range acked {
+			if a.Status != alerts.StatusAcked {
+				t.Fatalf("alert %d status = %q, want acked", a.ID, a.Status)
+			}
+		}
+	})
+
+	t.Run("empty ids returns nil", func(t *testing.T) {
+		acked, err := s.BulkAckAlerts(ctx, nil, base)
+		if err != nil {
+			t.Fatalf("BulkAckAlerts(nil): %v", err)
+		}
+		if acked != nil {
+			t.Fatalf("expected nil, got %v", acked)
+		}
+	})
+
+	t.Run("skips resolved alerts", func(t *testing.T) {
+		alert, err := s.UpsertAlert(ctx, alerts.AlertWrite{
+			DedupeKey: "bulk:resolved",
+			Source:    "test",
+			Title:     "Resolved Alert",
+			Severity:  "error",
+			CreatedAt: base,
+		})
+		if err != nil {
+			t.Fatalf("UpsertAlert: %v", err)
+		}
+		if _, err := s.ResolveAlert(ctx, "bulk:resolved", base.Add(time.Minute)); err != nil {
+			t.Fatalf("ResolveAlert: %v", err)
+		}
+
+		acked, err := s.BulkAckAlerts(ctx, []int64{alert.ID}, base.Add(2*time.Minute))
+		if err != nil {
+			t.Fatalf("BulkAckAlerts: %v", err)
+		}
+		if len(acked) != 0 {
+			t.Fatalf("len(acked) = %d, want 0 (resolved should be skipped)", len(acked))
+		}
+	})
+}
+
 func TestResolveOpsAlertAcked(t *testing.T) {
 	t.Parallel()
 

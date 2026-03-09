@@ -194,6 +194,27 @@ func (o *opsOrchestrator) RecordAlertCreated(ctx context.Context, alert alerts.A
 	}
 }
 
+// RecordAlertAcked records a timeline event when an alert is acknowledged.
+// Best-effort: errors are logged but not returned.
+func (o *opsOrchestrator) RecordAlertAcked(ctx context.Context, alert alerts.Alert, at time.Time) {
+	if o == nil || o.repo == nil {
+		return
+	}
+	_, err := o.repo.InsertActivityEvent(ctx, activity.EventWrite{
+		Source:    "alert",
+		EventType: "alert.acked",
+		Severity:  "info",
+		Resource:  alert.Resource,
+		Message:   fmt.Sprintf("Alert acknowledged: %s", alert.Title),
+		Details:   alert.Message,
+		Metadata:  marshalMetadata(map[string]any{"alertId": alert.ID, "dedupeKey": alert.DedupeKey}),
+		CreatedAt: at,
+	})
+	if err != nil {
+		slog.Warn("failed to record alert.acked event", "alertId", alert.ID, "err", err)
+	}
+}
+
 // RecordAlertResolved records a timeline event when an alert is resolved.
 // Best-effort: errors are logged but not returned.
 func (o *opsOrchestrator) RecordAlertResolved(ctx context.Context, alert alerts.Alert, at time.Time) {

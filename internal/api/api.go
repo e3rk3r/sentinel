@@ -127,6 +127,7 @@ type alertsActivityRepo interface {
 	DeleteAlert(ctx context.Context, id int64) error
 	UpsertAlert(ctx context.Context, write alerts.AlertWrite) (alerts.Alert, error)
 	ResolveAlert(ctx context.Context, dedupeKey string, at time.Time) (alerts.Alert, error)
+	BulkAckAlerts(ctx context.Context, ids []int64, at time.Time) ([]alerts.Alert, error)
 	SearchActivityEvents(ctx context.Context, query activity.Query) (activity.Result, error)
 	GetStorageStats(ctx context.Context) (store.StorageStats, error)
 	FlushStorageResource(ctx context.Context, resource string) ([]store.StorageFlushResult, error)

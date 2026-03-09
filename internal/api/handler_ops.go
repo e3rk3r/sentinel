@@ -273,6 +273,60 @@ func (h *Handler) ackOpsAlert(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) bulkAckOpsAlerts(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", err.Error(), nil)
+		return
+	}
+	if len(req.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "ids must not be empty", nil)
+		return
+	}
+	if len(req.IDs) > 100 {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "ids must contain at most 100 items", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	now := time.Now().UTC()
+	acked, err := h.repo.BulkAckAlerts(ctx, req.IDs, now)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to bulk ack alerts", nil)
+		return
+	}
+
+	for _, alert := range acked {
+		h.orch.RecordAlertAcked(ctx, alert, now)
+	}
+
+	globalRev := now.UnixMilli()
+	h.emit(events.TypeOpsAlerts, map[string]any{
+		"globalRev": globalRev,
+		"alerts":    acked,
+		"action":    "bulk-ack",
+	})
+
+	host, _ := os.Hostname()
+	for _, alert := range acked {
+		h.notifier.SendAsync(notify.AlertWebhookPayload{
+			Event:     "alert.acked",
+			Alert:     alert,
+			Host:      host,
+			Timestamp: now,
+		})
+	}
+
+	writeData(w, http.StatusOK, map[string]any{
+		"acked":     acked,
+		"globalRev": globalRev,
+	})
+}
+
 func (h *Handler) deleteOpsAlert(w http.ResponseWriter, r *http.Request) {
 	alertRaw := strings.TrimSpace(r.PathValue("alert"))
 	alertID, err := strconv.ParseInt(alertRaw, 10, 64)

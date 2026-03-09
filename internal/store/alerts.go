@@ -218,6 +218,76 @@ func (s *Store) AckAlert(ctx context.Context, id int64, ackAt time.Time) (alerts
 	return out, nil
 }
 
+func (s *Store) BulkAckAlerts(ctx context.Context, ids []int64, ackAt time.Time) ([]alerts.Alert, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	at := ackAt.UTC()
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	atRFC3339 := at.Format(time.RFC3339)
+
+	placeholders := make([]string, len(ids))
+	args := []any{alerts.StatusAcked, atRFC3339, atRFC3339}
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	args = append(args, alerts.StatusResolved)
+
+	//nolint:gosec // G201: placeholders are literal "?" strings, not user input
+	query := fmt.Sprintf(`UPDATE ops_alerts
+		SET status = ?, acked_at = ?, last_seen_at = ?
+		WHERE id IN (%s) AND status != ?`,
+		strings.Join(placeholders, ","))
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, nil
+	}
+
+	if _, err := s.BumpOpsRevision(ctx, RevTableAlerts); err != nil {
+		return nil, fmt.Errorf("bump alerts revision: %w", err)
+	}
+
+	// Fetch updated alerts.
+	//nolint:gosec // G201: placeholders are literal "?" strings
+	selectQuery := fmt.Sprintf(`SELECT
+		id, dedupe_key, source, resource, title, message, severity, status, occurrences,
+		metadata, first_seen_at, last_seen_at, acked_at, resolved_at
+	FROM ops_alerts WHERE id IN (%s)`, strings.Join(placeholders, ","))
+	selectArgs := make([]any, len(ids))
+	for i, id := range ids {
+		selectArgs[i] = id
+	}
+	rows, err := s.db.QueryContext(ctx, selectQuery, selectArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []alerts.Alert
+	for rows.Next() {
+		var a alerts.Alert
+		if err := rows.Scan(
+			&a.ID, &a.DedupeKey, &a.Source, &a.Resource, &a.Title, &a.Message,
+			&a.Severity, &a.Status, &a.Occurrences, &a.Metadata,
+			&a.FirstSeenAt, &a.LastSeenAt, &a.AckedAt, &a.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) DeleteAlert(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return sql.ErrNoRows

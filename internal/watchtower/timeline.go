@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opus-domini/sentinel/internal/activity"
 	"github.com/opus-domini/sentinel/internal/store"
 )
 
@@ -87,12 +88,12 @@ func detectTimelineMarker(preview string, patterns []store.MarkerPattern) (strin
 	// Fallback: use hardcoded lists when patterns cache is nil.
 	for _, marker := range fallbackErrorMarkers {
 		if strings.Contains(normalized, marker) {
-			return marker, "error", true
+			return marker, activity.SeverityError, true
 		}
 	}
 	for _, marker := range fallbackWarnMarkers {
 		if strings.Contains(normalized, marker) {
-			return marker, "warn", true
+			return marker, activity.SeverityWarn, true
 		}
 	}
 	return "", "", false

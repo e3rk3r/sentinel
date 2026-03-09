@@ -50,6 +50,7 @@ type AlertWrite struct {
 type Repo interface {
 	UpsertAlert(ctx context.Context, write AlertWrite) (Alert, error)
 	AckAlert(ctx context.Context, id int64, at time.Time) (Alert, error)
+	BulkAckAlerts(ctx context.Context, ids []int64, at time.Time) ([]Alert, error)
 	ListAlerts(ctx context.Context, limit int, status string) ([]Alert, error)
 	ResolveAlert(ctx context.Context, dedupeKey string, at time.Time) (Alert, error)
 	DeleteAlert(ctx context.Context, id int64) error

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Eye, EyeOff, Menu, RefreshCw, Trash2 } from 'lucide-react'
+import { CheckCheck, Eye, EyeOff, Menu, RefreshCw, Trash2 } from 'lucide-react'
 import type {
   OpsActivityEvent,
   OpsAlert,
@@ -73,7 +73,10 @@ function AlertsPage() {
 
   const [selectedSeverity, setSelectedSeverity] = useState('all')
   const [showResolved, setShowResolved] = useState(false)
+  const [showAcked, setShowAcked] = useState(false)
   const [confirmDismissId, setConfirmDismissId] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkAcking, setBulkAcking] = useState(false)
 
   useEffect(() => {
     if (confirmDismissId == null) return
@@ -115,16 +118,56 @@ function AlertsPage() {
     if (!showResolved) {
       result = result.filter((a) => a.status !== 'resolved')
     }
+    if (!showAcked) {
+      result = result.filter((a) => a.status !== 'acked')
+    }
     if (selectedSeverity !== 'all') {
       result = result.filter((a) => a.severity === selectedSeverity)
     }
     return result
-  }, [alerts, selectedSeverity, showResolved])
+  }, [alerts, selectedSeverity, showResolved, showAcked])
 
   const openCount = useMemo(
     () => alerts.filter((a) => a.status === 'open').length,
     [alerts],
   )
+
+  // Clear selection when filtered list changes (e.g. after ack)
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visibleIds = new Set(filteredAlerts.map((a) => a.id))
+      const next = new Set<number>()
+      for (const id of prev) {
+        if (visibleIds.has(id)) next.add(id)
+      }
+      return next.size === prev.size ? prev : next
+    })
+  }, [filteredAlerts])
+
+  const selectableAlerts = useMemo(
+    () => filteredAlerts.filter((a) => a.status === 'open'),
+    [filteredAlerts],
+  )
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allSelected = selectableAlerts.every((a) => prev.has(a.id))
+      if (allSelected) return new Set()
+      return new Set(selectableAlerts.map((a) => a.id))
+    })
+  }, [selectableAlerts])
 
   const refreshOverview = useCallback(async () => {
     await queryClient.refetchQueries({
@@ -240,6 +283,52 @@ function AlertsPage() {
     [alerts, api, pushToast, queryClient],
   )
 
+  const bulkAck = useCallback(async () => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+
+    setBulkAcking(true)
+    const previousAlerts = alerts.filter((a) => ids.includes(a.id))
+
+    queryClient.setQueryData<Array<OpsAlert>>(
+      OPS_ALERTS_QUERY_KEY,
+      (current = []) =>
+        current.map((item) =>
+          ids.includes(item.id) ? { ...item, status: 'acked' } : item,
+        ),
+    )
+    setSelectedIds(new Set())
+
+    try {
+      await api<{ acked: Array<OpsAlert> }>('/api/ops/alerts/bulk-ack', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      })
+      void refreshAlerts()
+      pushToast({
+        level: 'info',
+        title: 'Alerts acknowledged',
+        message: `${ids.length} alert${ids.length > 1 ? 's' : ''} acknowledged`,
+      })
+    } catch (error) {
+      queryClient.setQueryData<Array<OpsAlert>>(
+        OPS_ALERTS_QUERY_KEY,
+        (current = []) => {
+          const restored = new Map(previousAlerts.map((a) => [a.id, a]))
+          return current.map((item) => restored.get(item.id) ?? item)
+        },
+      )
+      pushToast({
+        level: 'error',
+        title: 'Bulk ack failed',
+        message:
+          error instanceof Error ? error.message : 'failed to ack alerts',
+      })
+    } finally {
+      setBulkAcking(false)
+    }
+  }, [selectedIds, alerts, api, pushToast, queryClient, refreshAlerts])
+
   const dismissAlert = useCallback(
     async (alertID: number) => {
       const previous = alerts.find((item) => item.id === alertID)
@@ -304,6 +393,43 @@ function AlertsPage() {
             <span className="truncate text-muted-foreground">alerts</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {selectedIds.size > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 cursor-pointer gap-1 px-2 text-[11px]"
+                disabled={bulkAcking}
+                onClick={() => void bulkAck()}
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                <span>Ack {selectedIds.size}</span>
+              </Button>
+            )}
+            {selectableAlerts.length > 1 && selectedIds.size === 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 cursor-pointer gap-1 px-2 text-[11px] text-muted-foreground"
+                onClick={toggleSelectAll}
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Select all</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 cursor-pointer gap-1 px-2 text-[11px]"
+              onClick={() => setShowAcked((prev) => !prev)}
+              aria-label={showAcked ? 'Hide acked' : 'Show acked'}
+            >
+              {showAcked ? (
+                <Eye className="h-3.5 w-3.5" />
+              ) : (
+                <EyeOff className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden md:inline">Acked</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -383,23 +509,45 @@ function AlertsPage() {
                       className={cn(
                         'grid gap-1.5 rounded border px-2.5 py-2',
                         alert.status === 'resolved'
-                          ? 'border-border-subtle bg-surface-elevated opacity-60'
-                          : alert.severity === 'error'
-                            ? 'border-red-500/45 bg-red-500/10'
-                            : 'border-amber-500/45 bg-amber-500/10',
+                          ? 'border-border-subtle bg-surface-elevated opacity-50'
+                          : alert.status === 'acked'
+                            ? 'border-border-subtle bg-surface-elevated opacity-70'
+                            : alert.severity === 'error'
+                              ? 'border-red-500/45 bg-red-500/10'
+                              : 'border-amber-500/45 bg-amber-500/10',
                       )}
                     >
                       <div className="flex min-w-0 items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-[12px] font-semibold">
-                            {alert.title}
-                          </p>
-                          <p className="truncate text-[10px] text-muted-foreground">
-                            {alert.resource} • {alert.occurrences}x
-                          </p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          {alert.status === 'open' && (
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-border accent-primary"
+                              checked={selectedIds.has(alert.id)}
+                              onChange={() => toggleSelect(alert.id)}
+                              aria-label={`Select alert ${alert.title}`}
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-[12px] font-semibold">
+                              {alert.title}
+                            </p>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {alert.resource} • {alert.occurrences}x
+                            </p>
+                          </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
-                          <span className="rounded-full border border-border-subtle bg-surface-overlay px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          <span
+                            className={cn(
+                              'rounded-full border px-1.5 py-0.5 text-[10px]',
+                              alert.status === 'open'
+                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                                : alert.status === 'acked'
+                                  ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                                  : 'border-border-subtle bg-surface-overlay text-muted-foreground',
+                            )}
+                          >
                             {alert.status}
                           </span>
                           {alert.status === 'resolved' &&
