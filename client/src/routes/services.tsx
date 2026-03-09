@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   CheckCircle2,
+  CircleOff,
   Clock3,
   FileText,
   Layers,
@@ -624,15 +625,33 @@ function ServicesPage() {
   }, [])
 
   const stats = useMemo(() => {
-    if (overview == null) {
-      return { total: '0', active: '0', failed: '0' }
+    let list = browseServices
+    if (svcScopeFilter !== 'all') {
+      list = list.filter(
+        (s) => s.scope.toLowerCase() === svcScopeFilter.toLowerCase(),
+      )
+    }
+    const total = list.length
+    let active = 0
+    let inactive = 0
+    let failed = 0
+    for (const s of list) {
+      const state = s.activeState.trim().toLowerCase()
+      if (state === 'active' || state === 'running') active++
+      else if (state === 'failed') failed++
+      else if (state === 'inactive' || state === 'dead') inactive++
     }
     return {
-      total: `${overview.services.total}`,
-      active: `${overview.services.active}`,
-      failed: `${overview.services.failed}`,
+      total: `${total}`,
+      active: `${active}`,
+      inactive: `${inactive}`,
+      failed: `${failed}`,
     }
-  }, [overview])
+  }, [browseServices, svcScopeFilter])
+
+  const toggleStateFilter = useCallback((filter: string) => {
+    setSvcStateFilter((prev) => (prev === filter ? 'all' : filter))
+  }, [])
 
   return (
     <AppShell
@@ -685,10 +704,10 @@ function ServicesPage() {
 
         <div className="grid min-h-0 grid-rows-[auto_1fr] gap-2 overflow-hidden p-2 md:gap-3 md:p-3">
           <section>
-            {overviewLoading ? (
+            {browseLoading ? (
               <>
-                <div className="hidden gap-2 md:grid md:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, idx) => (
+                <div className="hidden gap-2 md:grid md:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, idx) => (
                     <div
                       key={`svc-metric-skeleton-${idx}`}
                       className="h-20 animate-pulse rounded-lg border border-border-subtle bg-surface-elevated"
@@ -699,40 +718,91 @@ function ServicesPage() {
               </>
             ) : (
               <>
-                <div className="hidden gap-2 md:grid md:grid-cols-3">
-                  <MetricCard label="Total" value={stats.total} />
-                  <MetricCard label="Active" value={stats.active} />
+                <div className="hidden gap-2 md:grid md:grid-cols-4">
+                  <MetricCard
+                    label="Total"
+                    value={stats.total}
+                    onClick={() => setSvcStateFilter('all')}
+                    selected={svcStateFilter === 'all'}
+                  />
+                  <MetricCard
+                    label="Active"
+                    value={stats.active}
+                    onClick={() => toggleStateFilter('active')}
+                    selected={svcStateFilter === 'active'}
+                  />
+                  <MetricCard
+                    label="Inactive"
+                    value={stats.inactive}
+                    onClick={() => toggleStateFilter('inactive')}
+                    selected={svcStateFilter === 'inactive'}
+                  />
                   <MetricCard
                     label="Failed"
                     value={stats.failed}
                     alert={Number(stats.failed) > 0}
+                    onClick={() => toggleStateFilter('failed')}
+                    selected={svcStateFilter === 'failed'}
                   />
                 </div>
-                <div className="flex items-center justify-center gap-4 rounded-lg border border-border-subtle bg-surface-elevated px-2 py-1.5 md:hidden">
-                  <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex items-center justify-center gap-3 rounded-lg border border-border-subtle bg-surface-elevated px-2 py-1.5 md:hidden">
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground',
+                      svcStateFilter === 'all' &&
+                        'underline underline-offset-2',
+                    )}
+                    onClick={() => setSvcStateFilter('all')}
+                  >
                     <Layers className="h-3.5 w-3.5" />
                     <span className="font-semibold text-foreground">
                       {stats.total}
                     </span>
                     total
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-emerald-400',
+                      svcStateFilter === 'active' &&
+                        'underline underline-offset-2',
+                    )}
+                    onClick={() => toggleStateFilter('active')}
+                  >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span className="font-semibold">{stats.active}</span>
                     active
-                  </span>
-                  <span
+                  </button>
+                  <button
+                    type="button"
                     className={cn(
-                      'flex items-center gap-1.5 text-[11px]',
+                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground',
+                      svcStateFilter === 'inactive' &&
+                        'underline underline-offset-2',
+                    )}
+                    onClick={() => toggleStateFilter('inactive')}
+                  >
+                    <CircleOff className="h-3.5 w-3.5" />
+                    <span className="font-semibold">{stats.inactive}</span>
+                    inactive
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex cursor-pointer items-center gap-1.5 text-[11px]',
                       Number(stats.failed) > 0
                         ? 'text-red-400'
                         : 'text-muted-foreground',
+                      svcStateFilter === 'failed' &&
+                        'underline underline-offset-2',
                     )}
+                    onClick={() => toggleStateFilter('failed')}
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
                     <span className="font-semibold">{stats.failed}</span>
                     failed
-                  </span>
+                  </button>
                 </div>
               </>
             )}
@@ -740,17 +810,6 @@ function ServicesPage() {
 
           <section className="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary">
             <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-2">
-              <select
-                value={svcStateFilter}
-                onChange={(e) => setSvcStateFilter(e.target.value)}
-                className="h-7 flex-1 rounded-md border border-border-subtle bg-surface-overlay px-2 text-[12px] md:h-8 md:flex-none"
-                aria-label="Filter by state"
-              >
-                <option value="all">All states</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="failed">Failed</option>
-              </select>
               <select
                 value={svcScopeFilter}
                 onChange={(e) => setSvcScopeFilter(e.target.value)}

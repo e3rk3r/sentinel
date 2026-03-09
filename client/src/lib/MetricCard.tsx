@@ -5,26 +5,42 @@ export function MetricCard({
   value,
   sub,
   alert,
+  onClick,
+  selected,
 }: {
   label: string
   value: string
   sub?: string
   alert?: boolean
+  onClick?: () => void
+  selected?: boolean
 }) {
-  return (
-    <div
-      className={cn(
-        'rounded-lg border p-2.5',
-        alert
-          ? 'border-red-500/40 bg-red-500/10'
-          : 'border-border-subtle bg-surface-elevated',
-      )}
-    >
+  const className = cn(
+    'rounded-lg border p-2.5 text-left',
+    alert
+      ? 'border-red-500/40 bg-red-500/10'
+      : 'border-border-subtle bg-surface-elevated',
+    selected && 'ring-1 ring-primary/50 border-primary/40',
+    onClick && 'cursor-pointer hover:bg-accent/40 transition-colors',
+  )
+
+  const content = (
+    <>
       <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 text-[12px] font-semibold">{value}</p>
       {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
-    </div>
+    </>
   )
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {content}
+      </button>
+    )
+  }
+
+  return <div className={className}>{content}</div>
 }
