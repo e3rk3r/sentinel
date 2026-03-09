@@ -35,7 +35,6 @@ type Config struct {
 	Timezone            string
 	Locale              string
 	Watchtower          WatchtowerConfig
-	Recovery            RecoveryConfig
 	AlertThresholds     AlertThresholds
 }
 
@@ -45,14 +44,6 @@ type WatchtowerConfig struct {
 	CaptureLines   int
 	CaptureTimeout time.Duration
 	JournalRows    int
-}
-
-type RecoveryConfig struct {
-	Enabled          bool
-	SnapshotInterval time.Duration
-	CaptureLines     int
-	MaxSnapshots     int
-	BootRestore      string // "off", "safe", "confirm", "full"
 }
 
 var (
@@ -95,17 +86,6 @@ const defaultConfigContent = `# Sentinel configuration
 # watchtower_capture_timeout = "150ms"
 # watchtower_journal_rows = 5000
 
-# Recovery subsystem (tmux session journal + restore engine).
-# Environment variables:
-# - SENTINEL_RECOVERY_ENABLED
-# - SENTINEL_RECOVERY_SNAPSHOT_INTERVAL
-# - SENTINEL_RECOVERY_MAX_SNAPSHOTS
-# - SENTINEL_RECOVERY_BOOT_RESTORE
-# recovery_enabled = true
-# recovery_snapshot_interval = "5s"
-# recovery_max_snapshots = 300
-# recovery_boot_restore = "off"  # off | safe | confirm | full
-
 # IANA timezone for all displayed timestamps.
 # Environment variable: SENTINEL_TIMEZONE
 # timezone = "America/Sao_Paulo"
@@ -126,12 +106,6 @@ func Load() Config {
 			CaptureTimeout: 150 * time.Millisecond,
 			JournalRows:    5000,
 		},
-		Recovery: RecoveryConfig{
-			Enabled:          true,
-			SnapshotInterval: 5 * time.Second,
-			CaptureLines:     80,
-			MaxSnapshots:     300,
-		},
 		AlertThresholds: AlertThresholds{
 			CPUPercent:  90.0,
 			MemPercent:  90.0,
@@ -147,7 +121,6 @@ func Load() Config {
 	file := loadFile(configPath)
 	applyCoreConfig(&cfg, file)
 	applyWatchtowerConfig(&cfg, file)
-	applyRecoveryConfig(&cfg, file)
 	applyAlertThresholdsConfig(&cfg, file)
 
 	return cfg
@@ -250,43 +223,6 @@ func applyWatchtowerConfig(cfg *Config, file map[string]string) {
 		file,
 		cfg.Watchtower.JournalRows,
 	)
-}
-
-func applyRecoveryConfig(cfg *Config, file map[string]string) {
-	if cfg == nil {
-		return
-	}
-
-	cfg.Recovery.Enabled = readBoolEnvOrFile(
-		"SENTINEL_RECOVERY_ENABLED",
-		"recovery_enabled",
-		file,
-		cfg.Recovery.Enabled,
-	)
-	cfg.Recovery.SnapshotInterval = readDurationEnvOrFile(
-		"SENTINEL_RECOVERY_SNAPSHOT_INTERVAL",
-		"recovery_snapshot_interval",
-		file,
-		cfg.Recovery.SnapshotInterval,
-	)
-	cfg.Recovery.CaptureLines = readPositiveIntEnvOrFile(
-		"SENTINEL_RECOVERY_CAPTURE_LINES",
-		"recovery_capture_lines",
-		file,
-		cfg.Recovery.CaptureLines,
-	)
-	cfg.Recovery.MaxSnapshots = readPositiveIntEnvOrFile(
-		"SENTINEL_RECOVERY_MAX_SNAPSHOTS",
-		"recovery_max_snapshots",
-		file,
-		cfg.Recovery.MaxSnapshots,
-	)
-	if raw := readRawEnvOrFile("SENTINEL_RECOVERY_BOOT_RESTORE", "recovery_boot_restore", file); raw != "" {
-		switch raw {
-		case "off", "safe", "confirm", "full":
-			cfg.Recovery.BootRestore = raw
-		}
-	}
 }
 
 func applyAlertThresholdsConfig(cfg *Config, file map[string]string) {

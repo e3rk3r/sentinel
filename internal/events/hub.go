@@ -22,8 +22,6 @@ const (
 	TypeOpsJob           = "ops.job.updated"
 	TypeOpsMetrics       = "ops.metrics.updated"
 	TypeScheduleUpdated  = "ops.schedule.updated"
-	TypeRecoveryOverview = "recovery.overview.updated"
-	TypeRecoveryJob      = "recovery.job.updated"
 )
 
 type Event struct {

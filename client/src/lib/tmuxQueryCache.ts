@@ -1,11 +1,6 @@
 import type { PaneInfo, WindowInfo } from '@/types'
 
 export const TMUX_SESSIONS_QUERY_KEY = ['tmux', 'sessions'] as const
-export const TMUX_RECOVERY_OVERVIEW_QUERY_KEY = [
-  'tmux',
-  'recovery',
-  'overview',
-] as const
 
 export type TmuxInspectorSnapshot = {
   windows: Array<WindowInfo>

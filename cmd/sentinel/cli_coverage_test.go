@@ -38,9 +38,6 @@ func TestHelpFunctions(t *testing.T) {
 		{"printServiceAutoUpdateUninstallHelp", printServiceAutoUpdateUninstallHelp},
 		{"printServiceAutoUpdateStatusHelp", printServiceAutoUpdateStatusHelp},
 		{"printDoctorHelp", printDoctorHelp},
-		{"printRecoveryHelp", printRecoveryHelp},
-		{"printRecoveryListHelp", printRecoveryListHelp},
-		{"printRecoveryRestoreHelp", printRecoveryRestoreHelp},
 		{"printUpdateHelp", printUpdateHelp},
 		{"printUpdateCheckHelp", printUpdateCheckHelp},
 		{"printUpdateApplyHelp", printUpdateApplyHelp},
@@ -64,7 +61,7 @@ func TestHelpFunctions(t *testing.T) {
 }
 
 // TestSubcommandHelpRouting tests that every subcommand group (service, update,
-// recovery, service autoupdate) returns exit 0 for help variants and exit 2
+// service autoupdate) returns exit 0 for help variants and exit 2
 // for unknown subcommands.
 func TestSubcommandHelpRouting(t *testing.T) {
 	t.Parallel()
@@ -101,12 +98,6 @@ func TestSubcommandHelpRouting(t *testing.T) {
 		{name: "update --help", args: []string{"update", "--help"}, wantCode: 0, wantOut: "sentinel update"},
 		{name: "update unknown", args: []string{"update", "bogus"}, wantCode: 2, wantErr: "unknown update command: bogus"},
 
-		// Recovery subcommand routing.
-		{name: "recovery no args", args: []string{"recovery"}, wantCode: 2},
-		{name: "recovery help", args: []string{"recovery", "help"}, wantCode: 0, wantOut: "sentinel recovery"},
-		{name: "recovery -h", args: []string{"recovery", "-h"}, wantCode: 0, wantOut: "sentinel recovery"},
-		{name: "recovery --help", args: []string{"recovery", "--help"}, wantCode: 0, wantOut: "sentinel recovery"},
-		{name: "recovery unknown", args: []string{"recovery", "bogus"}, wantCode: 2, wantErr: "unknown recovery command: bogus"},
 	}
 
 	for _, tc := range cases {
@@ -289,49 +280,6 @@ func TestRunServiceUninstallCommand(t *testing.T) {
 			t.Fatalf("exit code = %d, want 2", code)
 		}
 	})
-}
-
-// TestParseRecoveryStates validates state parsing for the recovery list command.
-func TestParseRecoveryStates(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name    string
-		input   string
-		want    int // expected number of parsed states
-		wantErr bool
-	}{
-		{name: "empty defaults to killed", input: "", want: 1},
-		{name: "single killed", input: "killed", want: 1},
-		{name: "single running", input: "running", want: 1},
-		{name: "single restoring", input: "restoring", want: 1},
-		{name: "single restored", input: "restored", want: 1},
-		{name: "single archived", input: "archived", want: 1},
-		{name: "comma separated", input: "killed,restored,running", want: 3},
-		{name: "whitespace trimmed", input: " killed , restored ", want: 2},
-		{name: "invalid state", input: "bogus", wantErr: true},
-		{name: "mixed valid and invalid", input: "killed,bogus", wantErr: true},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			got, err := parseRecoveryStates(tc.input)
-			if tc.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if len(got) != tc.want {
-				t.Fatalf("len(states) = %d, want %d", len(got), tc.want)
-			}
-		})
-	}
 }
 
 // TestFormatTime tests both zero and non-zero time formatting.
@@ -930,94 +878,6 @@ func TestDoctorStatusError(t *testing.T) {
 	if !strings.Contains(out.String(), "unavailable") {
 		t.Fatalf("stdout missing unavailable label: %s", out.String())
 	}
-}
-
-// TestRecoveryRestoreHelpAndArgs covers help, unexpected-arg, and validation paths.
-func TestRecoveryRestoreHelpAndArgs(t *testing.T) {
-	t.Run("help flag", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "restore", "--help"}, &out, &errOut)
-		if code != 0 {
-			t.Fatalf("exit code = %d, want 0", code)
-		}
-		if !strings.Contains(out.String(), "sentinel recovery restore") {
-			t.Fatalf("stdout missing help: %s", out.String())
-		}
-	})
-
-	t.Run("unexpected args", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "restore", "extra"}, &out, &errOut)
-		if code != 2 {
-			t.Fatalf("exit code = %d, want 2", code)
-		}
-	})
-
-	t.Run("missing snapshot id", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "restore"}, &out, &errOut)
-		if code != 2 {
-			t.Fatalf("exit code = %d, want 2", code)
-		}
-		if !strings.Contains(errOut.String(), "snapshot id is required") {
-			t.Fatalf("stderr missing error: %s", errOut.String())
-		}
-	})
-
-	t.Run("negative snapshot id", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "restore", "--snapshot", "-1"}, &out, &errOut)
-		if code != 2 {
-			t.Fatalf("exit code = %d, want 2", code)
-		}
-	})
-}
-
-// TestRecoveryListHelpAndArgs covers help and unexpected-arg paths.
-func TestRecoveryListHelpAndArgs(t *testing.T) {
-	t.Run("help flag", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "list", "--help"}, &out, &errOut)
-		if code != 0 {
-			t.Fatalf("exit code = %d, want 0", code)
-		}
-		if !strings.Contains(out.String(), "sentinel recovery list") {
-			t.Fatalf("stdout missing help: %s", out.String())
-		}
-	})
-
-	t.Run("unexpected args", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "list", "extra"}, &out, &errOut)
-		if code != 2 {
-			t.Fatalf("exit code = %d, want 2", code)
-		}
-	})
-
-	t.Run("invalid state", func(t *testing.T) {
-		t.Parallel()
-
-		var out, errOut bytes.Buffer
-		code := runCLI([]string{"recovery", "list", "--state", "bogus"}, &out, &errOut)
-		if code != 2 {
-			t.Fatalf("exit code = %d, want 2", code)
-		}
-		if !strings.Contains(errOut.String(), "invalid state") {
-			t.Fatalf("stderr missing error: %s", errOut.String())
-		}
-	})
 }
 
 // TestCurrentVersionFallbackToDev tests that currentVersion returns "dev" when

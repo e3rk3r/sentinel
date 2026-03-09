@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  TMUX_RECOVERY_OVERVIEW_QUERY_KEY,
   TMUX_SESSIONS_QUERY_KEY,
   shouldCacheActiveInspectorSnapshot,
   tmuxInspectorQueryKey,
@@ -34,11 +33,6 @@ function paneFor(session: string): PaneInfo {
 describe('tmuxQueryCache', () => {
   it('builds stable query keys', () => {
     expect(TMUX_SESSIONS_QUERY_KEY).toEqual(['tmux', 'sessions'])
-    expect(TMUX_RECOVERY_OVERVIEW_QUERY_KEY).toEqual([
-      'tmux',
-      'recovery',
-      'overview',
-    ])
     expect(tmuxInspectorQueryKey(' alpha ')).toEqual([
       'tmux',
       'inspector',

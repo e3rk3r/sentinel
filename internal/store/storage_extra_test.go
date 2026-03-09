@@ -16,7 +16,6 @@ func TestIsStorageResource(t *testing.T) {
 		{"timeline", StorageResourceTimeline, true},
 		{"activity_log", StorageResourceActivityLog, true},
 		{"guardrail_log", StorageResourceGuardrailLog, true},
-		{"recovery_log", StorageResourceRecoveryLog, true},
 		{"ops_activity", StorageResourceOpsActivity, true},
 		{"ops_alerts", StorageResourceOpsAlerts, true},
 		{"ops_jobs", StorageResourceOpsJobs, true},

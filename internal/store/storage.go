@@ -14,7 +14,6 @@ const (
 	StorageResourceTimeline      = "timeline"
 	StorageResourceActivityLog   = "activity-journal"
 	StorageResourceGuardrailLog  = "guardrail-audit"
-	StorageResourceRecoveryLog   = "recovery-history"
 	StorageResourceOpsActivity   = "ops-activity"
 	StorageResourceOpsAlerts     = "ops-alerts"
 	StorageResourceOpsJobs       = "ops-jobs"
@@ -22,7 +21,6 @@ const (
 	storageResourceTimelineLabel = "Timeline events"
 	storageResourceActivityLabel = "Activity journal"
 	storageResourceGuardrailLbl  = "Guardrail audit"
-	storageResourceRecoveryLbl   = "Recovery history"
 	storageResourceOpsActivityLb = "Ops activity"
 	storageResourceOpsAlertsLbl  = "Ops alerts"
 	storageResourceOpsJobsLbl    = "Ops runbook jobs"
@@ -60,7 +58,6 @@ func IsStorageResource(raw string) bool {
 	case StorageResourceTimeline,
 		StorageResourceActivityLog,
 		StorageResourceGuardrailLog,
-		StorageResourceRecoveryLog,
 		StorageResourceOpsActivity,
 		StorageResourceOpsAlerts,
 		StorageResourceOpsJobs,
@@ -73,7 +70,7 @@ func IsStorageResource(raw string) bool {
 
 func (s *Store) GetStorageStats(ctx context.Context) (StorageStats, error) {
 	stats := StorageStats{
-		Resources:   make([]StorageResourceStat, 0, 7),
+		Resources:   make([]StorageResourceStat, 0, 6),
 		CollectedAt: time.Now().UTC(),
 	}
 
@@ -98,7 +95,7 @@ func (s *Store) GetStorageStats(ctx context.Context) (StorageStats, error) {
 		StorageResourceTimeline,
 		StorageResourceActivityLog,
 		StorageResourceGuardrailLog,
-		StorageResourceRecoveryLog,
+
 		StorageResourceOpsActivity,
 		StorageResourceOpsAlerts,
 		StorageResourceOpsJobs,
@@ -116,12 +113,12 @@ func (s *Store) GetStorageStats(ctx context.Context) (StorageStats, error) {
 func (s *Store) FlushStorageResource(ctx context.Context, resource string) ([]StorageFlushResult, error) {
 	resource = NormalizeStorageResource(resource)
 	if resource == StorageResourceAll {
-		results := make([]StorageFlushResult, 0, 7)
+		results := make([]StorageFlushResult, 0, 6)
 		for _, key := range []string{
 			StorageResourceTimeline,
 			StorageResourceActivityLog,
 			StorageResourceGuardrailLog,
-			StorageResourceRecoveryLog,
+	
 			StorageResourceOpsActivity,
 			StorageResourceOpsAlerts,
 			StorageResourceOpsJobs,
@@ -164,38 +161,6 @@ func (s *Store) flushStorageResourceSingle(ctx context.Context, resource string)
 			return StorageFlushResult{}, err
 		}
 		return StorageFlushResult{Resource: resource, RemovedRows: removed}, nil
-	case StorageResourceRecoveryLog:
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			return StorageFlushResult{}, err
-		}
-		defer func() { _ = tx.Rollback() }()
-
-		snapshotsRemoved, err := deleteRowsTx(ctx, tx, "DELETE FROM recovery_snapshots")
-		if err != nil {
-			return StorageFlushResult{}, err
-		}
-		jobsRemoved, err := deleteRowsTx(ctx, tx, "DELETE FROM recovery_jobs")
-		if err != nil {
-			return StorageFlushResult{}, err
-		}
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE recovery_sessions
-			    SET latest_snapshot_id = 0,
-			        snapshot_hash = '',
-			        snapshot_at = '',
-			        windows = 0,
-			        panes = 0,
-			        updated_at = datetime('now')`); err != nil {
-			return StorageFlushResult{}, err
-		}
-		if err := tx.Commit(); err != nil {
-			return StorageFlushResult{}, err
-		}
-		return StorageFlushResult{
-			Resource:    resource,
-			RemovedRows: snapshotsRemoved + jobsRemoved,
-		}, nil
 	case StorageResourceOpsActivity:
 		removed, err := deleteRows(ctx, s.db, "DELETE FROM ops_timeline_events")
 		if err != nil {
@@ -273,34 +238,6 @@ func (s *Store) resourceStorageStats(ctx context.Context, resource string) (Stor
 			Label:       storageResourceGuardrailLbl,
 			Rows:        rows,
 			ApproxBytes: approxBytes,
-		}, nil
-	case StorageResourceRecoveryLog:
-		snapRows, snapBytes, err := queryRowsAndBytes(ctx, s.db, `SELECT
-			COUNT(*),
-			COALESCE(SUM(
-				length(session_name) + length(boot_id) + length(state_hash) +
-				length(captured_at) + length(active_pane_id) + length(payload_json)
-			), 0)
-		FROM recovery_snapshots`)
-		if err != nil {
-			return StorageResourceStat{}, err
-		}
-		jobRows, jobBytes, err := queryRowsAndBytes(ctx, s.db, `SELECT
-			COUNT(*),
-			COALESCE(SUM(
-				length(id) + length(session_name) + length(target_session) + length(mode) +
-				length(conflict_policy) + length(status) + length(current_step) +
-				length(error) + length(created_at) + length(started_at) + length(finished_at)
-			), 0)
-		FROM recovery_jobs`)
-		if err != nil {
-			return StorageResourceStat{}, err
-		}
-		return StorageResourceStat{
-			Resource:    resource,
-			Label:       storageResourceRecoveryLbl,
-			Rows:        snapRows + jobRows,
-			ApproxBytes: snapBytes + jobBytes,
 		}, nil
 	case StorageResourceOpsActivity:
 		rows, approxBytes, err := queryRowsAndBytes(ctx, s.db, `SELECT
@@ -382,13 +319,6 @@ func deleteRows(ctx context.Context, db *sql.DB, query string, args ...any) (int
 	return result.RowsAffected()
 }
 
-func deleteRowsTx(ctx context.Context, tx *sql.Tx, query string, args ...any) (int64, error) {
-	result, err := tx.ExecContext(ctx, query, args...)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
 
 func (s *Store) walCheckpoint(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {

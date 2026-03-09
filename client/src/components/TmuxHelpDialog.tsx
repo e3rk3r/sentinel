@@ -107,14 +107,6 @@ export default function TmuxHelpDialog() {
                 ))}
               </div>
             </section>
-            <section>
-              <h3 className="mb-1 font-medium text-foreground">Recovery</h3>
-              <p>
-                Sentinel periodically snapshots terminal content. If a session
-                is interrupted, the recovery center lets you restore from the
-                last captured snapshot.
-              </p>
-            </section>
           </div>
         </DialogContent>
       </Dialog>

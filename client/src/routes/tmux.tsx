@@ -16,7 +16,6 @@ import TmuxTerminalPanel from '@/components/TmuxTerminalPanel'
 import CreateSessionDialog from '@/components/sidebar/CreateSessionDialog'
 import GuardrailsDialog from '@/components/tmux/GuardrailsDialog'
 import TimelineDialog from '@/components/tmux/TimelineDialog'
-import RecoveryDialog from '@/components/tmux/RecoveryDialog'
 import GuardrailConfirmDialog from '@/components/GuardrailConfirmDialog'
 import RenameDialog from '@/components/tmux/RenameDialog'
 import { useLayoutContext } from '@/contexts/LayoutContext'
@@ -27,7 +26,6 @@ import { useTerminalTmux } from '@/hooks/useTerminalTmux'
 import { useTmuxApi } from '@/hooks/useTmuxApi'
 import { usePresence } from '@/hooks/usePresence'
 import { useSeenTracking } from '@/hooks/useSeenTracking'
-import { useRecovery } from '@/hooks/useRecovery'
 import { useTmuxTimeline } from '@/hooks/useTmuxTimeline'
 import { useInspector } from '@/hooks/useInspector'
 import { useSessionCRUD } from '@/hooks/useSessionCRUD'
@@ -98,7 +96,6 @@ function TmuxPage() {
     wsCloseCount: 0,
     sessionsRefreshCount: 0,
     inspectorRefreshCount: 0,
-    recoveryRefreshCount: 0,
     fallbackRefreshCount: 0,
     deltaSyncCount: 0,
     deltaSyncErrors: 0,
@@ -209,15 +206,6 @@ function TmuxPage() {
     refreshSessionsRef.current = sessionCRUD.refreshSessions
   }, [sessionCRUD.refreshSessions])
 
-  // ---- Recovery hook ----
-  const recovery = useRecovery({
-    api,
-    runtimeMetricsRef,
-    refreshSessions: sessionCRUD.refreshSessions,
-    pushErrorToast,
-    pushSuccessToast,
-  })
-
   // ---- Timeline hook ----
   const timeline = useTmuxTimeline({
     api,
@@ -278,7 +266,6 @@ function TmuxPage() {
     sendPresenceOverWS: presence.sendPresenceOverWS,
     refreshSessions: sessionCRUD.refreshSessions,
     refreshInspector: inspector.refreshInspector,
-    refreshRecovery: recovery.refreshRecovery,
     pushErrorToast,
     applySessionActivityPatches: inspector.applySessionActivityPatches,
     applyInspectorProjectionPatches: inspector.applyInspectorProjectionPatches,
@@ -377,7 +364,6 @@ function TmuxPage() {
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onOpenGuardrails={() => setGuardrailsOpen(true)}
-        onOpenSnapshots={() => recovery.setRecoveryDialogOpen(true)}
         onOpenTimeline={() => {
           timeline.setTimelineOpen(true)
           void timeline.loadTimeline({ quiet: true })
@@ -417,42 +403,6 @@ function TmuxPage() {
         onSessionFilterChange={timeline.setTimelineSessionFilter}
         onRefresh={() => {
           void timeline.loadTimeline()
-        }}
-      />
-
-      <RecoveryDialog
-        open={recovery.recoveryDialogOpen}
-        onOpenChange={recovery.setRecoveryDialogOpen}
-        recoverySessions={recovery.recoverySessions}
-        recoveryJobs={recovery.recoveryJobs}
-        recoverySnapshots={recovery.recoverySnapshots}
-        selectedRecoverySession={recovery.selectedRecoverySession}
-        selectedSnapshotID={recovery.selectedSnapshotID}
-        selectedSnapshot={recovery.selectedSnapshot}
-        recoveryLoading={recovery.recoveryLoading}
-        recoveryBusy={recovery.recoveryBusy}
-        recoveryError={recovery.recoveryError}
-        restoreMode={recovery.restoreMode}
-        restoreConflictPolicy={recovery.restoreConflictPolicy}
-        restoreTargetSession={recovery.restoreTargetSession}
-        onRefresh={() => {
-          void recovery.refreshRecovery()
-        }}
-        onSelectSession={(session) => {
-          recovery.setSelectedRecoverySession(session)
-          recovery.setRestoreTargetSessionRaw(session)
-        }}
-        onSelectSnapshot={(id) => {
-          void recovery.loadRecoverySnapshot(id)
-        }}
-        onRestoreModeChange={recovery.setRestoreMode}
-        onConflictPolicyChange={recovery.setRestoreConflictPolicy}
-        onTargetSessionChange={recovery.setRestoreTargetSession}
-        onRestore={() => {
-          void recovery.restoreSelectedSnapshot()
-        }}
-        onArchive={(session) => {
-          void recovery.archiveRecoverySession(session)
         }}
       />
 

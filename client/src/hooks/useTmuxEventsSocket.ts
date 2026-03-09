@@ -32,7 +32,6 @@ type UseTmuxEventsSocketOptions = {
     target: string,
     options?: { background?: boolean },
   ) => Promise<void>
-  refreshRecovery: (options?: { quiet?: boolean }) => Promise<void>
   pushErrorToast: (title: string, message: string) => void
   applySessionActivityPatches: (
     rawPatches: Array<SessionActivityPatch> | undefined,
@@ -63,7 +62,6 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     sendPresenceOverWS,
     refreshSessions,
     refreshInspector,
-    refreshRecovery,
     pushErrorToast,
     applySessionActivityPatches,
     applyInspectorProjectionPatches,
@@ -83,9 +81,8 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
   const refreshTimerRef = useRef<{
     sessions: number | null
     inspector: number | null
-    recovery: number | null
     timeline: number | null
-  }>({ sessions: null, inspector: null, recovery: null, timeline: null })
+  }>({ sessions: null, inspector: null, timeline: null })
 
   useEffect(() => {
     eventsSocketConnectedRef.current = eventsSocketConnected
@@ -156,31 +153,26 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     ],
   )
 
-  const refreshAllState = useCallback(
-    (params?: { quietRecovery?: boolean }) => {
-      if (tokenRequired && !authenticated) {
-        return
-      }
-      void refreshSessions()
-      const active = tabsStateRef.current.activeSession.trim()
-      if (active !== '') {
-        void refreshInspector(active)
-      }
-      void refreshRecovery({ quiet: params?.quietRecovery ?? true })
-    },
-    [
-      refreshInspector,
-      refreshRecovery,
-      refreshSessions,
-      tabsStateRef,
-      authenticated,
-      tokenRequired,
-    ],
-  )
+  const refreshAllState = useCallback(() => {
+    if (tokenRequired && !authenticated) {
+      return
+    }
+    void refreshSessions()
+    const active = tabsStateRef.current.activeSession.trim()
+    if (active !== '') {
+      void refreshInspector(active)
+    }
+  }, [
+    refreshInspector,
+    refreshSessions,
+    tabsStateRef,
+    authenticated,
+    tokenRequired,
+  ])
 
   // Initial sync on page load
   useEffect(() => {
-    refreshAllState({ quietRecovery: false })
+    refreshAllState()
   }, [refreshAllState])
 
   // Visibility / online reconciliation
@@ -191,7 +183,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
           void syncActivityDelta({ reason: 'visibility-visible' })
           return
         }
-        refreshAllState({ quietRecovery: true })
+        refreshAllState()
       }
     }
     const onOnline = () => {
@@ -199,7 +191,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
         void syncActivityDelta({ reason: 'browser-online' })
         return
       }
-      refreshAllState({ quietRecovery: true })
+      refreshAllState()
     }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('online', onOnline)
@@ -214,10 +206,10 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     if (tokenRequired && !authenticated) return
     if (eventsSocketConnected) return
     runtimeMetricsRef.current.fallbackRefreshCount += 1
-    refreshAllState({ quietRecovery: true })
+    refreshAllState()
     const id = window.setInterval(() => {
       runtimeMetricsRef.current.fallbackRefreshCount += 1
-      refreshAllState({ quietRecovery: true })
+      refreshAllState()
     }, 8_000)
     return () => {
       window.clearInterval(id)
@@ -270,7 +262,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     }
 
     const schedule = (
-      kind: 'sessions' | 'inspector' | 'recovery' | 'timeline',
+      kind: 'sessions' | 'inspector' | 'timeline',
       scheduleOptions?: { minGapMs?: number },
     ) => {
       if (refreshTimerRef.current[kind] !== null) return
@@ -295,11 +287,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
           }
           return
         }
-        if (kind === 'timeline') {
-          loadTimelineRef.current({ quiet: true })
-          return
-        }
-        void refreshRecovery({ quiet: true })
+        loadTimelineRef.current({ quiet: true })
       }, delay)
     }
 
@@ -464,10 +452,6 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
               socket?.close()
               break
             }
-            case 'recovery.overview.updated':
-            case 'recovery.job.updated':
-              schedule('recovery')
-              break
             default:
               break
           }
@@ -508,12 +492,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
       if (reconnectTimer !== null) {
         window.clearTimeout(reconnectTimer)
       }
-      for (const key of [
-        'sessions',
-        'inspector',
-        'recovery',
-        'timeline',
-      ] as const) {
+      for (const key of ['sessions', 'inspector', 'timeline'] as const) {
         const id = refreshTimerRef.current[key]
         if (id !== null) {
           window.clearTimeout(id)
@@ -532,7 +511,6 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     presenceSocketRef,
     pushErrorToast,
     refreshInspector,
-    refreshRecovery,
     refreshSessions,
     runtimeMetricsRef,
     seenAckWaitersRef,

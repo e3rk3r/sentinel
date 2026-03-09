@@ -1,4 +1,4 @@
-import { Archive, History, Menu, Minus, Plus, ShieldAlert } from 'lucide-react'
+import { History, Menu, Minus, Plus, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useRef } from 'react'
 import ConnectionBadge from './ConnectionBadge'
 import SessionTabs from './SessionTabs'
@@ -48,7 +48,6 @@ type TmuxTerminalPanelProps = {
   onZoomIn?: () => void
   onZoomOut?: () => void
   onOpenGuardrails?: () => void
-  onOpenSnapshots?: () => void
   onOpenTimeline?: () => void
   onOpenCreateSession?: () => void
 }
@@ -88,7 +87,6 @@ export default function TmuxTerminalPanel({
   onZoomIn,
   onZoomOut,
   onOpenGuardrails,
-  onOpenSnapshots,
   onOpenTimeline,
   onOpenCreateSession,
 }: TmuxTerminalPanelProps) {
@@ -206,19 +204,6 @@ export default function TmuxTerminalPanel({
               aria-label="Guardrails"
             >
               <ShieldAlert className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipHelper>
-          <TooltipHelper content="Recovery snapshots">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 cursor-pointer"
-              onClick={onOpenSnapshots}
-              disabled={!onOpenSnapshots}
-              aria-label="Recovery snapshots"
-            >
-              <Archive className="h-3.5 w-3.5" />
             </Button>
           </TooltipHelper>
           <TooltipHelper content="Timeline">

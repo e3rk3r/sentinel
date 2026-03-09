@@ -125,42 +125,6 @@ func TestAlertThresholdsInvalidFallsBackToDefault(t *testing.T) {
 	}
 }
 
-func TestRecoveryConfigFromFile(t *testing.T) {
-	dir := t.TempDir()
-	configPath := filepath.Join(dir, "config.toml")
-	content := `recovery_enabled = false
-recovery_snapshot_interval = "10s"
-recovery_max_snapshots = 500
-recovery_capture_lines = 120
-`
-	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Setenv("SENTINEL_DATA_DIR", dir)
-	t.Setenv("SENTINEL_RECOVERY_ENABLED", "")
-	t.Setenv("SENTINEL_RECOVERY_SNAPSHOT_INTERVAL", "")
-	t.Setenv("SENTINEL_RECOVERY_MAX_SNAPSHOTS", "")
-	t.Setenv("SENTINEL_RECOVERY_CAPTURE_LINES", "")
-	t.Setenv("SENTINEL_LISTEN", "")
-	t.Setenv("SENTINEL_TOKEN", "")
-	t.Setenv("SENTINEL_ALLOWED_ORIGINS", "")
-	t.Setenv("SENTINEL_LOG_LEVEL", "")
-	t.Setenv("SENTINEL_COOKIE_SECURE", "")
-	t.Setenv("SENTINEL_ALLOW_INSECURE_COOKIE", "")
-
-	cfg := Load()
-	if cfg.Recovery.Enabled {
-		t.Fatal("Recovery.Enabled = true, want false")
-	}
-	if cfg.Recovery.MaxSnapshots != 500 {
-		t.Fatalf("MaxSnapshots = %d, want 500", cfg.Recovery.MaxSnapshots)
-	}
-	if cfg.Recovery.CaptureLines != 120 {
-		t.Fatalf("CaptureLines = %d, want 120", cfg.Recovery.CaptureLines)
-	}
-}
-
 func TestReadRawEnvOrFileNilMap(t *testing.T) {
 	t.Setenv("TEST_RAW_NIL_MAP_KEY", "")
 	got := readRawEnvOrFile("TEST_RAW_NIL_MAP_KEY", "key", nil)

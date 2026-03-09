@@ -22,7 +22,6 @@ import (
 	"github.com/opus-domini/sentinel/internal/config"
 	"github.com/opus-domini/sentinel/internal/events"
 	"github.com/opus-domini/sentinel/internal/httpui"
-	"github.com/opus-domini/sentinel/internal/recovery"
 	"github.com/opus-domini/sentinel/internal/scheduler"
 	"github.com/opus-domini/sentinel/internal/security"
 	"github.com/opus-domini/sentinel/internal/services"
@@ -81,7 +80,6 @@ func serve() int {
 		return 1
 	}
 
-	var recoveryService *recovery.Service
 	watchtowerService := watchtower.New(st, tmux.Service{}, watchtower.Options{
 		TickInterval:   cfg.Watchtower.TickInterval,
 		CaptureLines:   cfg.Watchtower.CaptureLines,
@@ -93,16 +91,6 @@ func serve() int {
 	})
 	if cfg.Watchtower.Enabled {
 		watchtowerService.Start(context.Background())
-	}
-	if cfg.Recovery.Enabled {
-		recoveryService = recovery.New(st, tmux.Service{}, recovery.Options{
-			SnapshotInterval:    cfg.Recovery.SnapshotInterval,
-			MaxSnapshotsPerSess: cfg.Recovery.MaxSnapshots,
-			EventHub:            eventHub,
-			AlertRepo:           st,
-			BootRestore:         cfg.Recovery.BootRestore,
-		})
-		recoveryService.Start(context.Background())
 	}
 
 	healthChecker := services.NewHealthChecker(opsManager, st, func(eventType string, payload map[string]any) {
@@ -134,7 +122,7 @@ func serve() int {
 	pruneDone := startOpsPruneTicker(pruneCtx, st)
 
 	configPath := filepath.Join(cfg.DataDir, "config.toml")
-	apiHandler := api.Register(mux, guard, st, opsManager, recoveryService, eventHub, currentVersion(), configPath, cfg.Timezone, cfg.Locale)
+	apiHandler := api.Register(mux, guard, st, opsManager, eventHub, currentVersion(), configPath, cfg.Timezone, cfg.Locale)
 
 	exitCode := run(cfg, mux)
 
@@ -166,11 +154,6 @@ func serve() int {
 		stopWatchtowerCtx, cancelWatchtower := context.WithTimeout(context.Background(), 2*time.Second)
 		watchtowerService.Stop(stopWatchtowerCtx)
 		cancelWatchtower()
-	}
-	if recoveryService != nil {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		recoveryService.Stop(stopCtx)
-		cancel()
 	}
 	return exitCode
 }
@@ -211,11 +194,6 @@ func run(cfg config.Config, mux *http.ServeMux) int {
 		slog.Info("watchtower disabled")
 	}
 
-	if cfg.Recovery.Enabled {
-		slog.Info("recovery enabled", "interval", cfg.Recovery.SnapshotInterval)
-	} else {
-		slog.Info("recovery disabled")
-	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "err", err)
 		return 1

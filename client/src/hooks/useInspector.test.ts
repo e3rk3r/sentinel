@@ -100,7 +100,6 @@ function createMockOptions(overrides: MockOptions = {}) {
       wsCloseCount: 0,
       sessionsRefreshCount: 0,
       inspectorRefreshCount: 0,
-      recoveryRefreshCount: 0,
       fallbackRefreshCount: 0,
       deltaSyncCount: 0,
       deltaSyncErrors: 0,

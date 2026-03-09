@@ -81,13 +81,6 @@ func TestContractRoutesAreMountedByFeature(t *testing.T) {
 		{name: "guardrails-audit", method: http.MethodGet, path: "/api/ops/guardrails/audit"},
 		{name: "guardrails-evaluate", method: http.MethodPost, path: "/api/ops/guardrails/evaluate", body: `{"action":"kill-session","args":{"session":"dev"}}`},
 
-		{name: "recovery-overview", method: http.MethodGet, path: "/api/recovery/overview"},
-		{name: "recovery-sessions", method: http.MethodGet, path: "/api/recovery/sessions"},
-		{name: "recovery-archive", method: http.MethodPost, path: "/api/recovery/sessions/dev/archive"},
-		{name: "recovery-snapshots", method: http.MethodGet, path: "/api/recovery/sessions/dev/snapshots"},
-		{name: "recovery-snapshot", method: http.MethodGet, path: "/api/recovery/snapshots/1"},
-		{name: "recovery-restore", method: http.MethodPost, path: "/api/recovery/snapshots/1/restore", body: `{}`},
-		{name: "recovery-job", method: http.MethodGet, path: "/api/recovery/jobs/noop"},
 	}
 
 	for _, tc := range routes {
@@ -123,7 +116,6 @@ func newContractMux(t *testing.T) *http.ServeMux {
 		security.New("", nil, security.CookieSecureAuto),
 		newTestStore(t),
 		&mockOpsControlPlane{},
-		&mockRecovery{},
 		events.NewHub(),
 		"test",
 		"",

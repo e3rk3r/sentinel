@@ -50,10 +50,6 @@ export default function AlertsHelpDialog() {
                   <strong className="text-foreground">runbook</strong> — runbook
                   execution failures and timeouts
                 </li>
-                <li>
-                  <strong className="text-foreground">recovery</strong> —
-                  session kill detection after reboot and restore job failures
-                </li>
               </ul>
             </section>
             <section>

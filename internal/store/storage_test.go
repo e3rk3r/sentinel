@@ -24,8 +24,8 @@ func TestStorageStatsAndFlush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetStorageStats: %v", err)
 	}
-	if len(stats.Resources) != 7 {
-		t.Fatalf("len(resources) = %d, want 7", len(stats.Resources))
+	if len(stats.Resources) != 6 {
+		t.Fatalf("len(resources) = %d, want 6", len(stats.Resources))
 	}
 
 	rowsByResource := make(map[string]int64, len(stats.Resources))
@@ -36,7 +36,6 @@ func TestStorageStatsAndFlush(t *testing.T) {
 		StorageResourceTimeline,
 		StorageResourceActivityLog,
 		StorageResourceGuardrailLog,
-		StorageResourceRecoveryLog,
 		StorageResourceOpsActivity,
 		StorageResourceOpsAlerts,
 		StorageResourceOpsJobs,
@@ -50,8 +49,8 @@ func TestStorageStatsAndFlush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FlushStorageResource(all): %v", err)
 	}
-	if len(results) != 7 {
-		t.Fatalf("len(results) = %d, want 7", len(results))
+	if len(results) != 6 {
+		t.Fatalf("len(results) = %d, want 6", len(results))
 	}
 
 	after, err := s.GetStorageStats(ctx)
@@ -103,32 +102,6 @@ func seedStorageStatsData(t *testing.T, s *Store, ctx context.Context, base time
 		CreatedAt:   base,
 	}); err != nil {
 		t.Fatalf("InsertGuardrailAudit: %v", err)
-	}
-	snapshot, _, err := s.UpsertRecoverySnapshot(ctx, RecoverySnapshotWrite{
-		SessionName:  "dev",
-		BootID:       "boot-1",
-		StateHash:    "hash-1",
-		CapturedAt:   base,
-		ActiveWindow: 0,
-		ActivePaneID: "%1",
-		Windows:      1,
-		Panes:        1,
-		PayloadJSON:  `{"windows":[],"panes":[]}`,
-	})
-	if err != nil {
-		t.Fatalf("UpsertRecoverySnapshot: %v", err)
-	}
-	if err := s.CreateRecoveryJob(ctx, RecoveryJob{
-		ID:             "job-1",
-		SessionName:    "dev",
-		TargetSession:  "dev-restored",
-		SnapshotID:     snapshot.ID,
-		Mode:           "safe",
-		ConflictPolicy: "rename",
-		Status:         RecoveryJobQueued,
-		CreatedAt:      base,
-	}); err != nil {
-		t.Fatalf("CreateRecoveryJob: %v", err)
 	}
 	if _, err := s.InsertActivityEvent(ctx, activity.EventWrite{
 		Source:    "service",

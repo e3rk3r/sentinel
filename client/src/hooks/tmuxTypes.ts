@@ -1,13 +1,5 @@
 import type { MutableRefObject } from 'react'
-import type {
-  PaneInfo,
-  RecoveryJob,
-  RecoverySession,
-  RecoverySnapshotView,
-  Session,
-  TimelineEvent,
-  WindowInfo,
-} from '@/types'
+import type { PaneInfo, Session, TimelineEvent, WindowInfo } from '@/types'
 import type { MergePendingInspectorResult } from '@/lib/tmuxInspectorOptimistic'
 import type {
   SessionActivityPatch,
@@ -100,12 +92,6 @@ export type ActivityDeltaResponse = {
   inspectorPatches?: Array<InspectorSessionPatch>
 }
 
-export type RecoveryOverviewCache = {
-  sessions: Array<RecoverySession>
-  jobs: Array<RecoveryJob>
-  lastCollectAt: string
-}
-
 export type TmuxTimelineCache = {
   events: Array<TimelineEvent>
   hasMore: boolean
@@ -122,7 +108,6 @@ export type RuntimeMetrics = {
   wsCloseCount: number
   sessionsRefreshCount: number
   inspectorRefreshCount: number
-  recoveryRefreshCount: number
   fallbackRefreshCount: number
   deltaSyncCount: number
   deltaSyncErrors: number
@@ -146,40 +131,6 @@ export type ApiFunction = <T>(path: string, init?: RequestInit) => Promise<T>
 // ---------------------------------------------------------------------------
 // Shared hook return types
 // ---------------------------------------------------------------------------
-
-export type RecoveryState = {
-  recoverySessions: Array<RecoverySession>
-  recoveryJobs: Array<RecoveryJob>
-  recoveryDialogOpen: boolean
-  recoverySnapshots: Array<{
-    id: number
-    capturedAt: string
-    windows: number
-    panes: number
-  }>
-  selectedRecoverySession: string | null
-  selectedSnapshotID: number | null
-  selectedSnapshot: RecoverySnapshotView | null
-  recoveryLoading: boolean
-  recoveryBusy: boolean
-  recoveryError: string
-  restoreMode: 'safe' | 'confirm' | 'full'
-  restoreConflictPolicy: 'rename' | 'replace' | 'skip'
-  restoreTargetSession: string
-}
-
-export type RecoveryActions = {
-  setRecoveryDialogOpen: (open: boolean) => void
-  setSelectedRecoverySession: (session: string | null) => void
-  setRestoreTargetSession: (session: string) => void
-  setRestoreMode: (mode: 'safe' | 'confirm' | 'full') => void
-  setRestoreConflictPolicy: (policy: 'rename' | 'replace' | 'skip') => void
-  refreshRecovery: (options?: { quiet?: boolean }) => Promise<void>
-  loadRecoverySnapshot: (snapshotID: number) => Promise<void>
-  loadRecoverySnapshots: (sessionName: string) => Promise<void>
-  restoreSelectedSnapshot: () => Promise<void>
-  archiveRecoverySession: (sessionName: string) => Promise<void>
-}
 
 export type TimelineState = {
   timelineOpen: boolean

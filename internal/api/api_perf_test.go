@@ -55,7 +55,6 @@ func newPerfMux(tb testing.TB) *http.ServeMux {
 		security.New("", nil, security.CookieSecureAuto),
 		st,
 		&mockOpsControlPlane{},
-		&mockRecovery{},
 		events.NewHub(),
 		"test",
 		"",

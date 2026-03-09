@@ -635,16 +635,3 @@ func TestDefaultAutoUpdateScopeFlag(t *testing.T) {
 	}
 }
 
-func TestRunCLIRecoveryRestoreWaitFalseRejected(t *testing.T) {
-	t.Parallel()
-
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	code := runCLI([]string{"recovery", "restore", "--snapshot", "1", "--wait=false"}, &out, &errOut)
-	if code != 2 {
-		t.Fatalf("exit code = %d, want 2", code)
-	}
-	if !strings.Contains(errOut.String(), "--wait=false is not supported") {
-		t.Fatalf("unexpected stderr: %s", errOut.String())
-	}
-}
