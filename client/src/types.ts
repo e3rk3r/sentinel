@@ -237,12 +237,18 @@ export type OpsActivityResponse = {
   hasMore: boolean
 }
 
+export type OpsRunbookStepType = 'run' | 'script' | 'approval'
+
 export type OpsRunbookStep = {
-  type: string
+  type: OpsRunbookStepType
   title: string
   command?: string
-  check?: string
+  script?: string
   description?: string
+  continueOnError?: boolean
+  timeout?: number
+  retries?: number
+  retryDelay?: number
 }
 
 export type RunbookParameterType = 'string' | 'number' | 'boolean' | 'select'

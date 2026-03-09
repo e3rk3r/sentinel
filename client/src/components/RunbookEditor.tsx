@@ -32,11 +32,15 @@ type RunbookEditorProps = {
 function createBlankStep(): RunbookStepDraft {
   return {
     key: randomId(),
-    type: 'command',
+    type: 'run',
     title: '',
     command: '',
-    check: '',
+    script: '',
     description: '',
+    continueOnError: false,
+    timeout: '',
+    retries: '',
+    retryDelay: '',
   }
 }
 

@@ -273,9 +273,14 @@ func (h *Handler) createOpsRunbook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to create runbook", nil)
 		return
 	}
-	writeData(w, http.StatusCreated, map[string]any{
+
+	result := map[string]any{
 		"runbook": rb,
-	})
+	}
+	if warnings := validateShellSyntax(req.Steps); len(warnings) > 0 {
+		result["shellWarnings"] = warnings
+	}
+	writeData(w, http.StatusCreated, result)
 }
 
 func (h *Handler) updateOpsRunbook(w http.ResponseWriter, r *http.Request) {
@@ -315,9 +320,14 @@ func (h *Handler) updateOpsRunbook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to update runbook", nil)
 		return
 	}
-	writeData(w, http.StatusOK, map[string]any{
+
+	result := map[string]any{
 		"runbook": rb,
-	})
+	}
+	if warnings := validateShellSyntax(req.Steps); len(warnings) > 0 {
+		result["shellWarnings"] = warnings
+	}
+	writeData(w, http.StatusOK, result)
 }
 
 func (h *Handler) deleteOpsRunbook(w http.ResponseWriter, r *http.Request) {
@@ -356,21 +366,40 @@ func (h *Handler) deleteOpsRunbook(w http.ResponseWriter, r *http.Request) {
 }
 
 var validStepTypes = map[string]bool{
-	"command": true,
-	"check":   true,
-	"manual":  true,
+	"run":      true,
+	"script":   true,
+	"approval": true,
 }
 
 func validateRunbookSteps(steps []store.OpsRunbookStep) error {
 	for i, step := range steps {
 		if !validStepTypes[step.Type] {
-			return fmt.Errorf("step %d: type must be command, check, or manual", i)
+			return fmt.Errorf("step %d: type must be run, script, or approval", i)
 		}
 		if strings.TrimSpace(step.Title) == "" {
 			return fmt.Errorf("step %d: title is required", i)
 		}
 	}
 	return nil
+}
+
+// validateShellSyntax runs shell syntax validation on all run/script steps
+// and returns warnings (not blocking errors).
+func validateShellSyntax(steps []store.OpsRunbookStep) []runbook.ShellWarning {
+	var inputs []runbook.ShellCheckInput
+	for i, s := range steps {
+		switch s.Type {
+		case "run":
+			if s.Command != "" {
+				inputs = append(inputs, runbook.ShellCheckInput{Step: i, Type: "run", Source: s.Command})
+			}
+		case "script":
+			if s.Script != "" {
+				inputs = append(inputs, runbook.ShellCheckInput{Step: i, Type: "script", Source: s.Script})
+			}
+		}
+	}
+	return runbook.ValidateShellSyntaxFromStrings(inputs)
 }
 
 func validateWebhookURL(raw string) error {
@@ -388,4 +417,140 @@ func validateWebhookURL(raw string) error {
 		return fmt.Errorf("webhook URL must include a host")
 	}
 	return nil
+}
+
+func (h *Handler) approveOpsRunbookRun(w http.ResponseWriter, r *http.Request) {
+	if h.repo == nil {
+		writeError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "store is unavailable", nil)
+		return
+	}
+	runID := strings.TrimSpace(r.PathValue("runId"))
+	if runID == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "run id is required", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Second)
+	defer cancel()
+
+	job, err := h.repo.GetOpsRunbookRun(ctx, runID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "OPS_JOB_NOT_FOUND", "run not found", nil)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to load run", nil)
+		return
+	}
+
+	if job.Status != store.OpsRunbookStatusWaitingApproval {
+		writeError(w, http.StatusConflict, "INVALID_STATE", fmt.Sprintf("run status is %q, not waiting_approval", job.Status), nil)
+		return
+	}
+
+	// Find the approval step index: it's the last step result that has type "approval".
+	approvalStepIndex := -1
+	for _, sr := range job.StepResults {
+		if sr.Type == "approval" {
+			approvalStepIndex = sr.StepIndex
+		}
+	}
+	if approvalStepIndex < 0 {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not find approval step in results", nil)
+		return
+	}
+
+	// Acquire the runbook concurrency semaphore (non-blocking).
+	select {
+	case h.runSem <- struct{}{}:
+	default:
+		writeError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS",
+			"too many concurrent runbook executions", nil)
+		return
+	}
+
+	// Resolve parameters from the run record.
+	resolved := job.ParametersUsed
+
+	// Launch async execution from the step after approval.
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		defer func() { <-h.runSem }()
+		runbook.ResumeRun(h.runCtx, h.repo, h.emitEvent, runbook.RunParams{
+			Job:           job,
+			Source:        "runbook",
+			StepTimeout:   30 * time.Second,
+			Parameters:    resolved,
+			ExtraMetadata: map[string]string{"runbookId": job.RunbookID},
+			AlertRepo:     h.repo,
+		}, approvalStepIndex)
+	}()
+
+	now := time.Now().UTC()
+	globalRev := now.UnixMilli()
+	h.emit(events.TypeOpsJob, map[string]any{
+		"globalRev": globalRev,
+		"job":       job,
+	})
+
+	writeData(w, http.StatusAccepted, map[string]any{
+		"job":       job,
+		"globalRev": globalRev,
+	})
+}
+
+func (h *Handler) rejectOpsRunbookRun(w http.ResponseWriter, r *http.Request) {
+	if h.repo == nil {
+		writeError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "store is unavailable", nil)
+		return
+	}
+	runID := strings.TrimSpace(r.PathValue("runId"))
+	if runID == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "run id is required", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	job, err := h.repo.GetOpsRunbookRun(ctx, runID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "OPS_JOB_NOT_FOUND", "run not found", nil)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to load run", nil)
+		return
+	}
+
+	if job.Status != store.OpsRunbookStatusWaitingApproval {
+		writeError(w, http.StatusConflict, "INVALID_STATE", fmt.Sprintf("run status is %q, not waiting_approval", job.Status), nil)
+		return
+	}
+
+	now := time.Now().UTC()
+	updated, err := h.repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+		RunID:          runID,
+		Status:         "failed",
+		CompletedSteps: job.CompletedSteps,
+		CurrentStep:    job.CurrentStep,
+		Error:          "approval rejected",
+		FinishedAt:     now.Format(time.RFC3339),
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "STORE_ERROR", "failed to update run", nil)
+		return
+	}
+
+	globalRev := now.UnixMilli()
+	h.emit(events.TypeOpsJob, map[string]any{
+		"globalRev": globalRev,
+		"job":       updated,
+	})
+
+	writeData(w, http.StatusOK, map[string]any{
+		"job":       updated,
+		"globalRev": globalRev,
+	})
 }

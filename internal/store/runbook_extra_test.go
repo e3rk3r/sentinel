@@ -79,7 +79,7 @@ func TestRunbookParametersRoundTrip(t *testing.T) {
 			Name:       "Parameterized Runbook",
 			Parameters: params,
 			Steps: []OpsRunbookStep{
-				{Type: "command", Title: "Deploy", Command: "deploy.sh {{host}} {{port}}"},
+				{Type: "run", Title: "Deploy", Command: "deploy.sh {{host}} {{port}}"},
 			},
 			Enabled: true,
 		})
@@ -218,7 +218,7 @@ func TestCreateOpsRunbookRunWithParams(t *testing.T) {
 			{Name: "env", Label: "Environment", Type: "select", Required: true, Options: []string{"dev", "prod"}},
 		},
 		Steps: []OpsRunbookStep{
-			{Type: "command", Title: "Deploy", Command: "deploy.sh {{host}} --env={{env}}"},
+			{Type: "run", Title: "Deploy", Command: "deploy.sh {{host}} --env={{env}}"},
 		},
 		Enabled: true,
 	}); err != nil {

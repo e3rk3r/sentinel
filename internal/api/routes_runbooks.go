@@ -12,6 +12,8 @@ func (h *Handler) registerRunbooksRoutes(mux *http.ServeMux) {
 		{pattern: "POST /api/ops/runbooks/{runbook}/run", handler: h.runOpsRunbook},
 		{pattern: "GET /api/ops/jobs/{job}", handler: h.opsJob},
 		{pattern: "DELETE /api/ops/jobs/{job}", handler: h.deleteOpsJob},
+		{pattern: "POST /api/ops/runs/{runId}/approve", handler: h.approveOpsRunbookRun},
+		{pattern: "POST /api/ops/runs/{runId}/reject", handler: h.rejectOpsRunbookRun},
 		{pattern: "GET /api/ops/schedules", handler: h.listSchedules},
 		{pattern: "POST /api/ops/schedules", handler: h.createSchedule},
 		{pattern: "PUT /api/ops/schedules/{schedule}", handler: h.updateSchedule},

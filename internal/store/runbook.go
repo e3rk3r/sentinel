@@ -10,20 +10,25 @@ import (
 )
 
 const (
-	opsRunbookStatusQueued    = "queued"
-	opsRunbookStatusRunning   = "running"
-	opsRunbookStatusSucceeded = "succeeded"
-	opsRunbookStatusFailed    = "failed"
+	opsRunbookStatusQueued          = "queued"
+	opsRunbookStatusRunning         = "running"
+	opsRunbookStatusSucceeded       = "succeeded"
+	opsRunbookStatusFailed          = "failed"
+	OpsRunbookStatusWaitingApproval = "waiting_approval"
 
 	opsRunbookOrphanError = "interrupted by server restart"
 )
 
 type OpsRunbookStep struct {
-	Type        string `json:"type"`
-	Title       string `json:"title"`
-	Command     string `json:"command,omitempty"`
-	Check       string `json:"check,omitempty"`
-	Description string `json:"description,omitempty"`
+	Type            string `json:"type"`
+	Title           string `json:"title"`
+	Command         string `json:"command,omitempty"`
+	Script          string `json:"script,omitempty"`
+	Description     string `json:"description,omitempty"`
+	ContinueOnError bool   `json:"continueOnError,omitempty"`
+	Timeout         int    `json:"timeout,omitempty"`
+	Retries         int    `json:"retries,omitempty"`
+	RetryDelay      int    `json:"retryDelay,omitempty"`
 }
 
 // RunbookParameter defines a single parameter that a runbook accepts.
@@ -569,9 +574,9 @@ func (s *Store) FailOrphanedRuns(ctx context.Context) (int64, error) {
 	result, err := s.db.ExecContext(ctx,
 		`UPDATE ops_runbook_runs
 			SET status = ?, error = ?, finished_at = ?
-		  WHERE status IN (?, ?)`,
+		  WHERE status IN (?, ?, ?)`,
 		opsRunbookStatusFailed, opsRunbookOrphanError, now,
-		opsRunbookStatusRunning, opsRunbookStatusQueued,
+		opsRunbookStatusRunning, opsRunbookStatusQueued, OpsRunbookStatusWaitingApproval,
 	)
 	if err != nil {
 		return 0, err

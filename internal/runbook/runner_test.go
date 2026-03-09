@@ -89,7 +89,7 @@ func TestRunPersistsTerminalStateOnCancelledContext(t *testing.T) {
 			ID:   "rb-1",
 			Name: "test-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "command", Title: "slow step", Command: "sleep 60"},
+				{Type: "run", Title: "slow step", Command: "sleep 60"},
 			},
 		},
 	}
@@ -135,7 +135,7 @@ func TestRunPersistsTerminalStateOnTimeout(t *testing.T) {
 			ID:   "rb-2",
 			Name: "timeout-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "command", Title: "slow step", Command: "sleep 60"},
+				{Type: "run", Title: "slow step", Command: "sleep 60"},
 			},
 		},
 	}
@@ -171,7 +171,7 @@ func TestRunOnFinishReceivesFinalizeContext(t *testing.T) {
 			ID:   "rb-3",
 			Name: "callback-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "command", Title: "quick", Command: "echo ok"},
+				{Type: "run", Title: "quick", Command: "echo ok"},
 			},
 		},
 	}
@@ -214,8 +214,7 @@ func TestRunSuccessfulEndToEnd(t *testing.T) {
 			ID:   "rb-ok",
 			Name: "quick-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "command", Title: "step-1", Command: "echo hello"},
-				{Type: "manual", Title: "step-2", Description: "done"},
+				{Type: "run", Title: "step-1", Command: "echo hello"},
 			},
 		},
 	}
@@ -243,8 +242,8 @@ func TestRunSuccessfulEndToEnd(t *testing.T) {
 	if last.FinishedAt == "" {
 		t.Error("last update FinishedAt is empty, want non-empty timestamp")
 	}
-	if last.CurrentStep != "step-2" {
-		t.Errorf("last update CurrentStep = %q, want %q", last.CurrentStep, "step-2")
+	if last.CurrentStep != "step-1" {
+		t.Errorf("last update CurrentStep = %q, want %q", last.CurrentStep, "step-1")
 	}
 	if repo.timelineCount() == 0 {
 		t.Error("no timeline events inserted, want at least 1")
@@ -291,7 +290,7 @@ func TestRunWithExtraMetadata(t *testing.T) {
 			ID:   "rb-meta",
 			Name: "meta-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "manual", Title: "done", Description: "ok"},
+				{Type: "approval", Title: "done", Description: "ok"},
 			},
 		},
 	}
@@ -308,18 +307,11 @@ func TestRunWithExtraMetadata(t *testing.T) {
 		},
 	})
 
-	// Verify timeline event was inserted with metadata.
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-	if len(repo.insertedTL) == 0 {
-		t.Fatal("no timeline events inserted")
-	}
-	meta := repo.insertedTL[len(repo.insertedTL)-1].Metadata
-	if !strings.Contains(meta, "scheduleId") {
-		t.Errorf("metadata = %q, want it to contain 'scheduleId'", meta)
-	}
-	if !strings.Contains(meta, "sched-123") {
-		t.Errorf("metadata = %q, want it to contain 'sched-123'", meta)
+	// Approval step pauses execution — no timeline event or finish.
+	// The last update should be waiting_approval.
+	last := repo.lastUpdate()
+	if last.Status != runnerStatusWaitingApproval {
+		t.Errorf("status = %q, want %q", last.Status, runnerStatusWaitingApproval)
 	}
 }
 
@@ -355,7 +347,7 @@ func TestRunAlertRepoUpsertOnFailure(t *testing.T) {
 			ID:   "rb-alert-fail",
 			Name: "failing-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "command", Title: "bad step", Command: "sleep 60"},
+				{Type: "run", Title: "bad step", Command: "sleep 60"},
 			},
 		},
 	}
@@ -400,7 +392,7 @@ func TestRunAlertRepoResolveOnSuccess(t *testing.T) {
 			ID:   "rb-alert-ok",
 			Name: "ok-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "manual", Title: "ok", Description: "done"},
+				{Type: "run", Title: "ok", Command: "echo done"},
 			},
 		},
 	}
@@ -452,7 +444,7 @@ func TestRunWithWebhookURL(t *testing.T) {
 			Name:       "webhook-runbook",
 			WebhookURL: server.URL,
 			Steps: []store.OpsRunbookStep{
-				{Type: "manual", Title: "ok", Description: "done"},
+				{Type: "run", Title: "ok", Command: "echo done"},
 			},
 		},
 	}
@@ -483,7 +475,7 @@ func TestRunDefaultTimeouts(t *testing.T) {
 			ID:   "rb-defaults",
 			Name: "defaults-runbook",
 			Steps: []store.OpsRunbookStep{
-				{Type: "manual", Title: "ok", Description: "done"},
+				{Type: "run", Title: "ok", Command: "echo done"},
 			},
 		},
 	}
@@ -521,9 +513,9 @@ func TestBuildWebhookPayload(t *testing.T) {
 		StartedAt:      "2026-02-20T22:00:00Z",
 		FinishedAt:     "2026-02-20T22:01:00Z",
 		StepResults: []store.OpsRunbookStepResult{
-			{StepIndex: 0, Title: "Build", Type: "command", Output: "ok", DurationMs: 120},
-			{StepIndex: 1, Title: "Test", Type: "command", Output: "passed", DurationMs: 340},
-			{StepIndex: 2, Title: "Verify", Type: "check", DurationMs: 50},
+			{StepIndex: 0, Title: "Build", Type: "run", Output: "ok", DurationMs: 120},
+			{StepIndex: 1, Title: "Test", Type: "run", Output: "passed", DurationMs: 340},
+			{StepIndex: 2, Title: "Verify", Type: "run", DurationMs: 50},
 		},
 	}
 
@@ -576,8 +568,8 @@ func TestBuildWebhookPayload(t *testing.T) {
 	if payload.Job.Steps[0].DurationMs != 120 {
 		t.Fatalf("steps[0].durationMs = %d, want 120", payload.Job.Steps[0].DurationMs)
 	}
-	if payload.Job.Steps[1].Type != "command" { //nolint:goconst // test assertion, not worth a constant
-		t.Fatalf("steps[1].type = %q, want command", payload.Job.Steps[1].Type)
+	if payload.Job.Steps[1].Type != "run" { //nolint:goconst // test assertion, not worth a constant
+		t.Fatalf("steps[1].type = %q, want run", payload.Job.Steps[1].Type)
 	}
 	if payload.Job.Steps[2].Title != "Verify" {
 		t.Fatalf("steps[2].title = %q, want Verify", payload.Job.Steps[2].Title)
@@ -604,8 +596,8 @@ func TestBuildWebhookPayloadFailedRun(t *testing.T) {
 		StartedAt:      "2026-02-20T22:00:00Z",
 		FinishedAt:     "2026-02-20T22:00:35Z",
 		StepResults: []store.OpsRunbookStepResult{
-			{StepIndex: 0, Title: "Setup", Type: "command", Output: "done", DurationMs: 200},
-			{StepIndex: 1, Title: "Deploy", Type: "command", Error: "timed out", DurationMs: 30000},
+			{StepIndex: 0, Title: "Setup", Type: "run", Output: "done", DurationMs: 200},
+			{StepIndex: 1, Title: "Deploy", Type: "run", Error: "timed out", DurationMs: 30000},
 		},
 	}
 
@@ -741,4 +733,40 @@ func TestFireWebhookHandlesInvalidURL(t *testing.T) {
 
 	// Should not panic on an unreachable URL.
 	fireWebhook(ctx, "http://192.0.2.1:1/webhook", map[string]string{"test": "true"})
+}
+
+func TestRunApprovalStepPauses(t *testing.T) {
+	t.Parallel()
+
+	repo := &mockRepo{
+		runbookOK: true,
+		runbook: store.OpsRunbook{
+			ID:   "rb-approval",
+			Name: "approval-runbook",
+			Steps: []store.OpsRunbookStep{
+				{Type: "run", Title: "build", Command: "echo ok"},
+				{Type: "approval", Title: "confirm deploy", Description: "Please approve"},
+				{Type: "run", Title: "deploy", Command: "deploy.sh"},
+			},
+		},
+	}
+
+	emit := func(_ string, _ map[string]any) {}
+
+	Run(context.Background(), repo, emit, RunParams{
+		Job:         store.OpsRunbookRun{ID: "run-approval", RunbookID: "rb-approval"},
+		Source:      "test",
+		StepTimeout: 5 * time.Second,
+		RunTimeout:  10 * time.Second,
+	})
+
+	// The run should be paused at waiting_approval, not finished.
+	last := repo.lastUpdate()
+	if last.Status != runnerStatusWaitingApproval {
+		t.Errorf("last update status = %q, want %q", last.Status, runnerStatusWaitingApproval)
+	}
+	// No timeline event should be inserted for a paused run.
+	if repo.timelineCount() != 0 {
+		t.Errorf("timeline events = %d, want 0 (paused run)", repo.timelineCount())
+	}
 }

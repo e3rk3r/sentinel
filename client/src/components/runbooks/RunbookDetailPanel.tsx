@@ -154,10 +154,44 @@ export function RunbookDetailPanel({
                 </span>
                 <span className="font-medium">{step.title}</span>
               </div>
-              {step.command && (
+              {step.type === 'run' && step.command && (
                 <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
                   {step.command}
                 </p>
+              )}
+              {step.type === 'script' && step.script && (
+                <pre className="mt-0.5 max-h-20 overflow-hidden truncate whitespace-pre-wrap font-mono text-[10px] text-muted-foreground">
+                  {step.script}
+                </pre>
+              )}
+              {step.type === 'approval' && step.description && (
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {step.description}
+                </p>
+              )}
+              {(step.continueOnError || step.timeout || step.retries) && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {step.continueOnError && (
+                    <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                      continue on error
+                    </Badge>
+                  )}
+                  {step.timeout != null && step.timeout > 0 && (
+                    <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                      timeout: {step.timeout}s
+                    </Badge>
+                  )}
+                  {step.retries != null && step.retries > 0 && (
+                    <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                      retries: {step.retries}
+                      {step.retryDelay != null && step.retryDelay > 0 && (
+                        <span className="ml-0.5 text-muted-foreground">
+                          ({step.retryDelay}s delay)
+                        </span>
+                      )}
+                    </Badge>
+                  )}
+                </div>
               )}
             </div>
           </div>

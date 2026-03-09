@@ -62,8 +62,8 @@ func TestInsertOpsRunbook(t *testing.T) {
 
 	t.Run("happy path with steps", func(t *testing.T) {
 		steps := []OpsRunbookStep{
-			{Type: "command", Title: "Check status", Command: "systemctl status"},
-			{Type: "manual", Title: "Review", Description: "Verify output"},
+			{Type: "run", Title: "Check status", Command: "systemctl status"},
+			{Type: "approval", Title: "Review", Description: "Verify output"},
 		}
 		rb, err := s.InsertOpsRunbook(ctx, OpsRunbookWrite{
 			ID:          "test.runbook.1",
@@ -90,7 +90,7 @@ func TestInsertOpsRunbook(t *testing.T) {
 		if len(rb.Steps) != 2 {
 			t.Fatalf("len(steps) = %d, want 2", len(rb.Steps))
 		}
-		if rb.Steps[0].Type != "command" || rb.Steps[1].Type != "manual" {
+		if rb.Steps[0].Type != "run" || rb.Steps[1].Type != "approval" {
 			t.Fatalf("unexpected step types: %+v", rb.Steps)
 		}
 	})
@@ -208,7 +208,7 @@ func TestUpdateOpsRunbook(t *testing.T) {
 		ID:          "update.me",
 		Name:        "Original",
 		Description: "Original description",
-		Steps:       []OpsRunbookStep{{Type: "command", Title: "Step 1", Command: "echo hello"}},
+		Steps:       []OpsRunbookStep{{Type: "run", Title: "Step 1", Command: "echo hello"}},
 		Enabled:     true,
 	})
 	if err != nil {
@@ -217,7 +217,7 @@ func TestUpdateOpsRunbook(t *testing.T) {
 
 	t.Run("update all fields", func(t *testing.T) {
 		newSteps := []OpsRunbookStep{
-			{Type: "check", Title: "Verify", Check: "service should be running"},
+			{Type: "run", Title: "Verify", Command: "service should be running"},
 		}
 		updated, err := s.UpdateOpsRunbook(ctx, OpsRunbookWrite{
 			ID:          "update.me",
@@ -238,7 +238,7 @@ func TestUpdateOpsRunbook(t *testing.T) {
 		if updated.Enabled {
 			t.Fatalf("enabled = true, want false")
 		}
-		if len(updated.Steps) != 1 || updated.Steps[0].Type != "check" {
+		if len(updated.Steps) != 1 || updated.Steps[0].Type != "run" {
 			t.Fatalf("unexpected steps: %+v", updated.Steps)
 		}
 		// UpdatedAt should be refreshed (not strictly equal to creation time).
@@ -358,8 +358,8 @@ func TestCreateOpsRunbookRun(t *testing.T) {
 		ID:   "run.test",
 		Name: "Run Test Runbook",
 		Steps: []OpsRunbookStep{
-			{Type: "command", Title: "First Step", Command: "echo first"},
-			{Type: "command", Title: "Second Step", Command: "echo second"},
+			{Type: "run", Title: "First Step", Command: "echo first"},
+			{Type: "run", Title: "Second Step", Command: "echo second"},
 		},
 		Enabled: true,
 	}); err != nil {
@@ -421,8 +421,8 @@ func TestUpdateOpsRunbookRun(t *testing.T) {
 		ID:   "update.run.rb",
 		Name: "Update Run Runbook",
 		Steps: []OpsRunbookStep{
-			{Type: "command", Title: "Step 1", Command: "echo 1"},
-			{Type: "command", Title: "Step 2", Command: "echo 2"},
+			{Type: "run", Title: "Step 1", Command: "echo 1"},
+			{Type: "run", Title: "Step 2", Command: "echo 2"},
 		},
 		Enabled: true,
 	}); err != nil {
@@ -435,7 +435,7 @@ func TestUpdateOpsRunbookRun(t *testing.T) {
 
 	t.Run("update to running with step results", func(t *testing.T) {
 		stepResults := []OpsRunbookStepResult{
-			{StepIndex: 0, Title: "Step 1", Type: "command", Output: "ok", DurationMs: 150},
+			{StepIndex: 0, Title: "Step 1", Type: "run", Output: "ok", DurationMs: 150},
 		}
 		resultsJSON, _ := json.Marshal(stepResults)
 
@@ -690,8 +690,8 @@ func TestFailOrphanedRuns(t *testing.T) {
 		ID:   "orphan.test",
 		Name: "Orphan Test",
 		Steps: []OpsRunbookStep{
-			{Type: "command", Title: "Check status", Command: "echo ok"},
-			{Type: "command", Title: "Restart service", Command: "systemctl restart sentinel"},
+			{Type: "run", Title: "Check status", Command: "echo ok"},
+			{Type: "run", Title: "Restart service", Command: "systemctl restart sentinel"},
 		},
 		Enabled: true,
 	}); err != nil {
@@ -711,8 +711,8 @@ func TestFailOrphanedRuns(t *testing.T) {
 		t.Fatalf("CreateOpsRunbookRun(running): %v", err)
 	}
 	stepResults, _ := json.Marshal([]OpsRunbookStepResult{
-		{StepIndex: 0, Title: "Check status", Type: "command", Output: "ok", DurationMs: 120},
-		{StepIndex: 1, Title: "Restart service", Type: "command"},
+		{StepIndex: 0, Title: "Check status", Type: "run", Output: "ok", DurationMs: 120},
+		{StepIndex: 1, Title: "Restart service", Type: "run"},
 	})
 	if _, err := s.UpdateOpsRunbookRun(ctx, OpsRunbookRunUpdate{
 		RunID:          runningRun.ID,
@@ -794,7 +794,7 @@ func TestFailOrphanedRuns(t *testing.T) {
 	if prePopulated.Title != "Restart service" {
 		t.Fatalf("pre-populated title = %q, want 'Restart service'", prePopulated.Title)
 	}
-	if prePopulated.Type != "command" {
+	if prePopulated.Type != "run" {
 		t.Fatalf("pre-populated type = %q, want 'command'", prePopulated.Type)
 	}
 	if prePopulated.Output != "" || prePopulated.Error != "" {

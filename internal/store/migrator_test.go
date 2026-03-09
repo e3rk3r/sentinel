@@ -27,8 +27,8 @@ func TestRunMigrationsFreshDB(t *testing.T) {
 	).Scan(&version, &name); err != nil {
 		t.Fatalf("query schema_migrations: %v", err)
 	}
-	if version != 7 || name != "marker-patterns" {
-		t.Fatalf("latest migration = (%d, %q), want (7, %q)", version, name, "marker-patterns")
+	if version != 8 || name != "runbook-step-refactor" {
+		t.Fatalf("latest migration = (%d, %q), want (8, %q)", version, name, "runbook-step-refactor")
 	}
 
 	// Spot-check that a few tables exist.
@@ -64,8 +64,8 @@ func TestRunMigrationsIdempotent(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if count != 6 { //nolint: migrations 000001, 000003, 000004, 000005, 000006, 000007
-		t.Fatalf("schema_migrations rows = %d, want 6", count)
+	if count != 7 { //nolint: migrations 000001, 000003, 000004, 000005, 000006, 000007, 000008
+		t.Fatalf("schema_migrations rows = %d, want 7", count)
 	}
 }
 

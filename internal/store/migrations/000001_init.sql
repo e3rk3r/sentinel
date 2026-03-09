@@ -373,7 +373,7 @@ INSERT OR IGNORE INTO ops_runbooks(
     'ops.service.recover',
     'Service Recovery',
     'Validate and recover the Sentinel service runtime.',
-    '[{"type":"command","title":"Inspect service status","command":"sentinel service status"},{"type":"command","title":"Restart service","command":"sentinel service install --start=true"},{"type":"check","title":"Confirm healthy status","check":"service should be active"}]',
+    '[{"type":"run","title":"Inspect service status","command":"sentinel service status"},{"type":"run","title":"Restart service","command":"sentinel service install --start=true"},{"type":"run","title":"Confirm healthy status","command":"service should be active"}]',
     1,
     datetime('now'),
     datetime('now')
@@ -385,7 +385,7 @@ INSERT OR IGNORE INTO ops_runbooks(
     'ops.autoupdate.verify',
     'Autoupdate Verification',
     'Check updater configuration and latest release state.',
-    '[{"type":"command","title":"Check updater timer","command":"sentinel service autoupdate status"},{"type":"command","title":"Check release status","command":"sentinel update check"},{"type":"manual","title":"Review output","description":"Review versions and update policy before apply."}]',
+    '[{"type":"run","title":"Check updater timer","command":"sentinel service autoupdate status"},{"type":"run","title":"Check release status","command":"sentinel update check"},{"type":"approval","title":"Review output","description":"Review versions and update policy before apply."}]',
     1,
     datetime('now'),
     datetime('now')
@@ -397,7 +397,7 @@ INSERT OR IGNORE INTO ops_runbooks(
     'ops.update.apply',
     'Apply Update',
     'Check for updates, download and install the latest version, and restart the service.',
-    '[{"type":"command","title":"Check for updates","command":"sentinel update check"},{"type":"command","title":"Apply update and restart","command":"sentinel update apply --restart"}]',
+    '[{"type":"run","title":"Check for updates","command":"sentinel update check"},{"type":"run","title":"Apply update and restart","command":"sentinel update apply --restart"}]',
     1,
     datetime('now'),
     datetime('now')

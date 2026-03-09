@@ -43,16 +43,28 @@ function runbookToDraft(runbook: OpsRunbook): RunbookDraft {
         options: p.options?.join(', ') ?? '',
       }),
     ),
-    steps: runbook.steps.map(
-      (step): RunbookStepDraft => ({
+    steps: runbook.steps.map((step): RunbookStepDraft => {
+      // Backward compat: treat old 'check' and 'command' as 'run'
+      let type: RunbookStepDraft['type'] = step.type
+      if ((type as string) === 'check' || (type as string) === 'command') {
+        type = 'run'
+      }
+      if ((type as string) === 'manual') {
+        type = 'approval'
+      }
+      return {
         key: randomId(),
-        type: step.type as RunbookStepDraft['type'],
+        type,
         title: step.title,
         command: step.command ?? '',
-        check: step.check ?? '',
+        script: step.script ?? '',
         description: step.description ?? '',
-      }),
-    ),
+        continueOnError: step.continueOnError ?? false,
+        timeout: step.timeout != null ? String(step.timeout) : '',
+        retries: step.retries != null ? String(step.retries) : '',
+        retryDelay: step.retryDelay != null ? String(step.retryDelay) : '',
+      }
+    }),
   }
 }
 
@@ -105,11 +117,14 @@ function validateDraft(draft: RunbookDraft): Record<string, string> {
     if (step.title.trim() === '') {
       errors[`step.${i}.title`] = 'Title is required'
     }
-    if (step.type === 'command' && step.command.trim() === '') {
+    if (step.type === 'run' && step.command.trim() === '') {
       errors[`step.${i}.command`] = 'Command is required'
     }
-    if (step.type === 'check' && step.check.trim() === '') {
-      errors[`step.${i}.check`] = 'Check command is required'
+    if (step.type === 'script' && step.script.trim() === '') {
+      errors[`step.${i}.script`] = 'Script is required'
+    }
+    if (step.type === 'approval' && step.description.trim() === '') {
+      errors[`step.${i}.description`] = 'Description is required'
     }
   })
   return errors
@@ -138,14 +153,21 @@ function draftToPayload(draft: RunbookDraft) {
       return param
     }),
     steps: draft.steps.map((step) => {
-      const base: Record<string, string> = {
+      const base: Record<string, unknown> = {
         type: step.type,
         title: step.title.trim(),
       }
-      if (step.type === 'command') base.command = step.command.trim()
-      if (step.type === 'check') base.check = step.check.trim()
-      if (step.type === 'manual' && step.description.trim() !== '')
+      if (step.type === 'run') base.command = step.command.trim()
+      if (step.type === 'script') base.script = step.script.trim()
+      if (step.type === 'approval' && step.description.trim() !== '')
         base.description = step.description.trim()
+      if (step.continueOnError) base.continueOnError = true
+      const timeout = Number(step.timeout)
+      if (timeout > 0) base.timeout = timeout
+      const retries = Number(step.retries)
+      if (retries > 0) base.retries = retries
+      const retryDelay = Number(step.retryDelay)
+      if (retries > 0 && retryDelay > 0) base.retryDelay = retryDelay
       return base
     }),
   }

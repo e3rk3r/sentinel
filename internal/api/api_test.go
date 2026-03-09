@@ -4241,7 +4241,7 @@ func TestCreateUpdateDeleteOpsRunbook(t *testing.T) {
 	r := httptest.NewRequest("POST", "/api/ops/runbooks", strings.NewReader(`{
 		"name":"deploy",
 		"description":"Deploy the app",
-		"steps":[{"type":"command","title":"Build","command":"make build"}],
+		"steps":[{"type":"run","title":"Build","command":"make build"}],
 		"enabled":true
 	}`))
 	h.createOpsRunbook(w, r)
@@ -4264,7 +4264,7 @@ func TestCreateUpdateDeleteOpsRunbook(t *testing.T) {
 	r = httptest.NewRequest("PUT", "/api/ops/runbooks/"+rbID, strings.NewReader(`{
 		"name":"deploy-v2",
 		"description":"Deploy v2",
-		"steps":[{"type":"command","title":"Build","command":"make build-all"}],
+		"steps":[{"type":"run","title":"Build","command":"make build-all"}],
 		"enabled":true
 	}`))
 	r.SetPathValue("runbook", rbID)
@@ -4341,7 +4341,7 @@ func TestTriggerScheduleFinalisesState(t *testing.T) {
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name: "trigger-test-rb",
 		Steps: []store.OpsRunbookStep{
-			{Type: "command", Title: "echo", Command: "echo ok"},
+			{Type: "run", Title: "echo", Command: "echo ok"},
 		},
 	})
 	if err != nil {
@@ -4423,7 +4423,7 @@ func TestTriggerOnceScheduleDisabledAfterManualRun(t *testing.T) {
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name: "once-trigger-rb",
 		Steps: []store.OpsRunbookStep{
-			{Type: "command", Title: "echo", Command: "echo ok"},
+			{Type: "run", Title: "echo", Command: "echo ok"},
 		},
 	})
 	if err != nil {
@@ -4482,7 +4482,7 @@ func TestDeleteRunbookCascadesSchedules(t *testing.T) {
 	// Create runbook.
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name:  "cascade-rb",
-		Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+		Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 	})
 	if err != nil {
 		t.Fatalf("InsertOpsRunbook: %v", err)
@@ -4537,7 +4537,7 @@ func TestCreateRunbookRejectsInvalidStepType(t *testing.T) {
 	}{
 		{"invalid type", `{"name":"bad","steps":[{"type":"shell","title":"Build","command":"make"}]}`},
 		{"empty type", `{"name":"bad","steps":[{"type":"","title":"Build","command":"make"}]}`},
-		{"missing title", `{"name":"bad","steps":[{"type":"command","title":"","command":"make"}]}`},
+		{"missing title", `{"name":"bad","steps":[{"type":"run","title":"","command":"make"}]}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4587,7 +4587,7 @@ func TestCreateRunbookRejectsInvalidWebhookURL(t *testing.T) {
 
 	h, _ := newTestHandler(t, nil, nil)
 
-	body := `{"name":"bad-hook","webhookURL":"ftp://not-http","steps":[{"type":"command","title":"Build","command":"make"}]}`
+	body := `{"name":"bad-hook","webhookURL":"ftp://not-http","steps":[{"type":"run","title":"Build","command":"make"}]}`
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/api/ops/runbooks", strings.NewReader(body))
 	h.createOpsRunbook(w, r)
@@ -4605,7 +4605,7 @@ func TestTriggerCronScheduleRecomputesNextRunAt(t *testing.T) {
 
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name:  "recompute-rb",
-		Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+		Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 	})
 	if err != nil {
 		t.Fatalf("InsertOpsRunbook: %v", err)
@@ -4886,7 +4886,7 @@ func TestListSchedulesHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "list-sched-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		if err != nil {
 			t.Fatalf("InsertOpsRunbook: %v", err)
@@ -4940,7 +4940,7 @@ func TestCreateScheduleHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "create-sched-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		if err != nil {
 			t.Fatalf("InsertOpsRunbook: %v", err)
@@ -4970,7 +4970,7 @@ func TestCreateScheduleHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "create-once-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		if err != nil {
 			t.Fatalf("InsertOpsRunbook: %v", err)
@@ -5041,7 +5041,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "update-sched-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		if err != nil {
 			t.Fatalf("InsertOpsRunbook: %v", err)
@@ -5079,7 +5079,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "upd-nf-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		body := fmt.Sprintf(`{"runbookId":"%s","name":"x","scheduleType":"cron","cronExpr":"0 * * * *","timezone":"UTC","enabled":true}`, rb.ID)
 		w := httptest.NewRecorder()
@@ -5133,7 +5133,7 @@ func TestDeleteScheduleHandler(t *testing.T) {
 		ctx := context.Background()
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "del-sched-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		future := time.Now().UTC().Add(1 * time.Hour).Format(time.RFC3339)
 		sched, _ := st.InsertOpsSchedule(ctx, store.OpsScheduleWrite{
@@ -5221,7 +5221,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-cron-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		_, err := validateScheduleRequest(ctx, st, rb.ID, "cron", "bad-cron", "UTC", "")
 		if err == nil || !strings.Contains(err.Error(), "invalid cron") {
@@ -5235,7 +5235,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-tz-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		_, err := validateScheduleRequest(ctx, st, rb.ID, "cron", "0 * * * *", "Invalid/Zone", "")
 		if err == nil || !strings.Contains(err.Error(), "invalid timezone") {
@@ -5249,7 +5249,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-once-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		_, err := validateScheduleRequest(ctx, st, rb.ID, "once", "", "", "not-rfc3339")
 		if err == nil || !strings.Contains(err.Error(), "runAt must be a valid RFC3339") {
@@ -5263,7 +5263,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-past-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		past := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
 		_, err := validateScheduleRequest(ctx, st, rb.ID, "once", "", "", past)
@@ -5278,7 +5278,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-ok-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		next, err := validateScheduleRequest(ctx, st, rb.ID, "cron", "0 * * * *", "UTC", "")
 		if err != nil {
@@ -5299,7 +5299,7 @@ func TestValidateScheduleRequest(t *testing.T) {
 		st := newTestStore(t)
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "val-once-ok-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		future := time.Now().UTC().Add(2 * time.Hour).Format(time.RFC3339)
 		next, err := validateScheduleRequest(ctx, st, rb.ID, "once", "", "", future)
@@ -5476,7 +5476,7 @@ func TestDeleteOpsJobHandler(t *testing.T) {
 
 		rb, _ := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 			Name:  "del-job-rb",
-			Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+			Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 		})
 		job, err := st.CreateOpsRunbookRun(ctx, rb.ID, time.Now().UTC())
 		if err != nil {
@@ -6674,7 +6674,7 @@ func TestRunOpsRunbookSemaphoreAccepted(t *testing.T) {
 
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name:  "sem-accept-rb",
-		Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+		Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 	})
 	if err != nil {
 		t.Fatalf("InsertOpsRunbook: %v", err)
@@ -6704,7 +6704,7 @@ func TestRunOpsRunbookSemaphoreFull(t *testing.T) {
 
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name:  "sem-full-rb",
-		Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+		Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 	})
 	if err != nil {
 		t.Fatalf("InsertOpsRunbook: %v", err)
@@ -6754,7 +6754,7 @@ func TestRunOpsRunbookSemaphoreReleasedAfterCompletion(t *testing.T) {
 
 	rb, err := st.InsertOpsRunbook(ctx, store.OpsRunbookWrite{
 		Name:  "sem-release-rb",
-		Steps: []store.OpsRunbookStep{{Type: "command", Title: "echo", Command: "echo ok"}},
+		Steps: []store.OpsRunbookStep{{Type: "run", Title: "echo", Command: "echo ok"}},
 	})
 	if err != nil {
 		t.Fatalf("InsertOpsRunbook: %v", err)

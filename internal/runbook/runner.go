@@ -64,9 +64,10 @@ type RunParams struct {
 }
 
 const (
-	runnerStatusRunning   = "running"
-	runnerStatusSucceeded = "succeeded"
-	runnerStatusFailed    = "failed"
+	runnerStatusRunning         = "running"
+	runnerStatusSucceeded       = "succeeded"
+	runnerStatusFailed          = "failed"
+	runnerStatusWaitingApproval = "waiting_approval"
 )
 
 const defaultRunTimeout = 5 * time.Minute
@@ -116,11 +117,15 @@ func Run(ctx context.Context, repo Repo, emit EmitFunc, params RunParams) {
 	steps := make([]Step, len(rb.Steps))
 	for i, s := range rb.Steps {
 		steps[i] = Step{
-			Type:        s.Type,
-			Title:       s.Title,
-			Command:     s.Command,
-			Check:       s.Check,
-			Description: s.Description,
+			Type:            s.Type,
+			Title:           s.Title,
+			Command:         s.Command,
+			Script:          s.Script,
+			Description:     s.Description,
+			ContinueOnError: s.ContinueOnError,
+			Timeout:         s.Timeout,
+			Retries:         s.Retries,
+			RetryDelay:      s.RetryDelay,
 		}
 	}
 
@@ -193,10 +198,42 @@ func Run(ctx context.Context, repo Repo, emit EmitFunc, params RunParams) {
 		})
 	}
 
-	results, execErr := executor.Execute(ctx, steps, beforeStep, progress)
+	execResult := executor.ExecuteFrom(ctx, steps, 0, beforeStep, progress)
+	results := execResult.Results
+
+	// Handle approval pause: update run to waiting_approval and return early.
+	if execResult.NeedsApproval {
+		stepResultsJSON, marshalErr := json.Marshal(accumulated)
+		if marshalErr != nil {
+			slog.Warn("runbook runner: failed to marshal step results for approval", "err", marshalErr)
+		}
+		lastStep := ""
+		if len(results) > 0 {
+			lastStep = results[len(results)-1].Title
+		}
+		if _, err := repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+			RunID:          job.ID,
+			Status:         runnerStatusWaitingApproval,
+			CompletedSteps: len(results),
+			CurrentStep:    lastStep,
+			StepResults:    string(stepResultsJSON),
+			StartedAt:      now.Format(time.RFC3339),
+		}); err != nil {
+			slog.Warn("runbook runner: failed to update run for approval", "err", err)
+		}
+		updatedJob, getErr := repo.GetOpsRunbookRun(ctx, job.ID)
+		if getErr != nil {
+			slog.Warn("runbook runner: failed to get run after approval pause", "err", getErr)
+		}
+		emit("ops.job.updated", map[string]any{
+			"globalRev": time.Now().UTC().UnixMilli(),
+			"job":       updatedJob,
+		})
+		return
+	}
 
 	errMsg := ""
-	if execErr != nil {
+	if execErr := execResult.Err(); execErr != nil {
 		errMsg = execErr.Error()
 	}
 	lastStep := ""
@@ -407,4 +444,184 @@ func fireWebhook(ctx context.Context, webhookURL string, payload any) {
 		return
 	}
 	slog.Info("webhook delivered", "url", webhookURL, "status", resp.Status().Code())
+}
+
+// ResumeRun continues a paused runbook run from the step after the
+// approval step. It re-fetches the runbook, builds steps, and resumes
+// execution from resumeFromStep+1.
+func ResumeRun(ctx context.Context, repo Repo, emit EmitFunc, params RunParams, resumeFromStep int) {
+	runTimeout := params.RunTimeout
+	if runTimeout <= 0 {
+		runTimeout = defaultRunTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, runTimeout)
+	defer cancel()
+
+	job := params.Job
+	now := time.Now().UTC()
+
+	// Mark as running again.
+	runningJob, err := repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+		RunID:          job.ID,
+		Status:         runnerStatusRunning,
+		CompletedSteps: resumeFromStep + 1,
+		CurrentStep:    job.CurrentStep,
+		StartedAt:      now.Format(time.RFC3339),
+	})
+	if err != nil {
+		slog.Warn("runbook runner: failed to mark resumed run as running", "err", err)
+	}
+	emit("ops.job.updated", map[string]any{
+		"globalRev": now.UnixMilli(),
+		"job":       runningJob,
+	})
+
+	// Fetch runbook steps.
+	rb, err := repo.GetOpsRunbook(ctx, job.RunbookID)
+	if err != nil {
+		finCtx, finCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second) //nolint:govet // finCancel is deferred
+		defer finCancel()
+		finishRun(finCtx, repo, emit, params, resumeFromStep+1, "", err.Error(), "[]", "")
+		return
+	}
+	steps := make([]Step, len(rb.Steps))
+	for i, s := range rb.Steps {
+		steps[i] = Step{
+			Type:            s.Type,
+			Title:           s.Title,
+			Command:         s.Command,
+			Script:          s.Script,
+			Description:     s.Description,
+			ContinueOnError: s.ContinueOnError,
+			Timeout:         s.Timeout,
+			Retries:         s.Retries,
+			RetryDelay:      s.RetryDelay,
+		}
+	}
+
+	stepTimeout := params.StepTimeout
+	if stepTimeout <= 0 {
+		stepTimeout = 30 * time.Second
+	}
+	executor := NewExecutor(nil, stepTimeout, params.Parameters)
+
+	// Recover previous step results from the run record.
+	existingRun, err := repo.GetOpsRunbookRun(ctx, job.ID)
+	if err != nil {
+		slog.Warn("runbook runner: failed to get existing run for resume", "err", err)
+	}
+	accumulated := make([]store.OpsRunbookStepResult, len(existingRun.StepResults))
+	copy(accumulated, existingRun.StepResults)
+
+	beforeStep := func(stepIndex int, step Step) {
+		accumulated = append(accumulated, store.OpsRunbookStepResult{
+			StepIndex: stepIndex,
+			Title:     step.Title,
+			Type:      step.Type,
+		})
+		stepResultsJSON, marshalErr := json.Marshal(accumulated)
+		if marshalErr != nil {
+			slog.Warn("runbook runner: failed to marshal step results", "err", marshalErr)
+		}
+		updated, updateErr := repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+			RunID:          job.ID,
+			Status:         runnerStatusRunning,
+			CompletedSteps: stepIndex,
+			CurrentStep:    step.Title,
+			StepResults:    string(stepResultsJSON),
+			StartedAt:      now.Format(time.RFC3339),
+		})
+		if updateErr != nil {
+			slog.Warn("runbook runner: failed to update run before step", "err", updateErr)
+		}
+		emit("ops.job.updated", map[string]any{
+			"globalRev": time.Now().UTC().UnixMilli(),
+			"job":       updated,
+		})
+	}
+
+	progress := func(completed int, stepTitle string, result StepResult) {
+		last := len(accumulated) - 1
+		accumulated[last] = store.OpsRunbookStepResult{
+			StepIndex:  result.StepIndex,
+			Title:      result.Title,
+			Type:       result.Type,
+			Output:     result.Output,
+			Error:      result.Error,
+			DurationMs: result.Duration.Milliseconds(),
+		}
+		stepResultsJSON, marshalErr := json.Marshal(accumulated)
+		if marshalErr != nil {
+			slog.Warn("runbook runner: failed to marshal step results", "err", marshalErr)
+		}
+		// completed here is relative to the resumed steps; adjust for total.
+		totalCompleted := resumeFromStep + 1 + completed
+		updated, updateErr := repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+			RunID:          job.ID,
+			Status:         runnerStatusRunning,
+			CompletedSteps: totalCompleted,
+			CurrentStep:    stepTitle,
+			StepResults:    string(stepResultsJSON),
+			StartedAt:      now.Format(time.RFC3339),
+		})
+		if updateErr != nil {
+			slog.Warn("runbook runner: failed to update run progress", "err", updateErr)
+		}
+		emit("ops.job.updated", map[string]any{
+			"globalRev": time.Now().UTC().UnixMilli(),
+			"job":       updated,
+		})
+	}
+
+	// Resume from the step after the approval step.
+	execResult := executor.ExecuteFrom(ctx, steps, resumeFromStep+1, beforeStep, progress)
+	results := execResult.Results
+
+	// Handle another approval pause.
+	if execResult.NeedsApproval {
+		stepResultsJSON, marshalErr := json.Marshal(accumulated)
+		if marshalErr != nil {
+			slog.Warn("runbook runner: failed to marshal step results for approval", "err", marshalErr)
+		}
+		lastStep := ""
+		if len(results) > 0 {
+			lastStep = results[len(results)-1].Title
+		}
+		if _, err := repo.UpdateOpsRunbookRun(ctx, store.OpsRunbookRunUpdate{
+			RunID:          job.ID,
+			Status:         runnerStatusWaitingApproval,
+			CompletedSteps: resumeFromStep + 1 + len(results),
+			CurrentStep:    lastStep,
+			StepResults:    string(stepResultsJSON),
+			StartedAt:      now.Format(time.RFC3339),
+		}); err != nil {
+			slog.Warn("runbook runner: failed to update run for approval", "err", err)
+		}
+		updatedJob, getErr := repo.GetOpsRunbookRun(ctx, job.ID)
+		if getErr != nil {
+			slog.Warn("runbook runner: failed to get run after approval pause", "err", getErr)
+		}
+		emit("ops.job.updated", map[string]any{
+			"globalRev": time.Now().UTC().UnixMilli(),
+			"job":       updatedJob,
+		})
+		return
+	}
+
+	errMsg := ""
+	if execErr := execResult.Err(); execErr != nil {
+		errMsg = execErr.Error()
+	}
+	lastStep := ""
+	if len(results) > 0 {
+		lastStep = results[len(results)-1].Title
+	}
+	stepResultsJSON, marshalErr := json.Marshal(accumulated)
+	if marshalErr != nil {
+		slog.Warn("runbook runner: failed to marshal final step results", "err", marshalErr)
+	}
+
+	finCtx, finCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer finCancel()
+	finishRun(finCtx, repo, emit, params, resumeFromStep+1+len(results), lastStep, errMsg, string(stepResultsJSON), rb.WebhookURL)
 }
