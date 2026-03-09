@@ -616,7 +616,8 @@ func (s *Store) SuggestRunbooksForMarker(ctx context.Context, marker, sessionNam
 	// description-only match (3).
 	var scoreExpr string
 	scoreArgs := make([]any, 0, 4)
-	if marker != "" && sessionName != "" {
+	switch {
+	case marker != "" && sessionName != "":
 		markerLike := "%" + marker + "%"
 		sessionLike := "%" + sessionName + "%"
 		scoreExpr = `CASE
@@ -625,16 +626,17 @@ func (s *Store) SuggestRunbooksForMarker(ctx context.Context, marker, sessionNam
 			ELSE 3
 		END`
 		scoreArgs = append(scoreArgs, markerLike, sessionLike)
-	} else if marker != "" {
+	case marker != "":
 		markerLike := "%" + marker + "%"
 		scoreExpr = `CASE WHEN lower(name) LIKE ? THEN 1 ELSE 2 END`
 		scoreArgs = append(scoreArgs, markerLike)
-	} else {
+	default:
 		sessionLike := "%" + sessionName + "%"
 		scoreExpr = `CASE WHEN lower(name) LIKE ? THEN 1 ELSE 2 END`
 		scoreArgs = append(scoreArgs, sessionLike)
 	}
 
+	//nolint:gosec // G202: query parts are not user-controlled (marker/session are internal values)
 	query := `SELECT id, name, description, steps_json, enabled, webhook_url, parameters, created_at, updated_at
 		FROM ops_runbooks
 		WHERE ` + where + `

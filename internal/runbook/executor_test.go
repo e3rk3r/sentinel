@@ -302,6 +302,7 @@ func TestContextCancelledBetweenSteps(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	callCount := 0
 	runner := func(_ context.Context, _ string, _ ...string) (string, error) {
@@ -781,7 +782,7 @@ func TestRetryOnFailure(t *testing.T) {
 	runner := func(_ context.Context, _ string, _ ...string) (string, error) {
 		callIdx++
 		if callIdx < 3 {
-			return "fail", fmt.Errorf("transient error")
+			return "fail", fmt.Errorf("transient error") //nolint:goconst // test fixture
 		}
 		return "ok", nil
 	}

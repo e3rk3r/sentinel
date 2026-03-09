@@ -121,8 +121,8 @@ func normalizeMarkerSeverity(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "error":
 		return "error"
-	case "info":
-		return "info"
+	case timelineSeverityInfo:
+		return timelineSeverityInfo
 	default:
 		return "warn"
 	}

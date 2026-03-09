@@ -223,7 +223,7 @@ func Register(
 	if runbookMaxConcurrent <= 0 {
 		runbookMaxConcurrent = 5
 	}
-	runCtx, runCancel := context.WithCancel(context.Background())
+	runCtx, runCancel := context.WithCancel(context.Background()) //nolint:gosec // G118: cancel called in Handler.Close()
 	h := &Handler{
 		guard:      guard,
 		tmux:       tmux.Service{},

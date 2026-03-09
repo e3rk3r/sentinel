@@ -221,7 +221,7 @@ func (h *Handler) patchWebhookSettings(w http.ResponseWriter, r *http.Request) {
 	webhookURL := strings.TrimSpace(req.URL)
 	if webhookURL != "" {
 		parsed, err := url.ParseRequestURI(webhookURL)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") { //nolint:goconst // inline URL scheme check
 			writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "url must be a valid http or https URL", nil)
 			return
 		}
@@ -287,7 +287,7 @@ func (h *Handler) testWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parsed, err := url.ParseRequestURI(webhookURL)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") { //nolint:goconst // inline URL scheme check
 		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "url must be a valid http or https URL", nil)
 		return
 	}

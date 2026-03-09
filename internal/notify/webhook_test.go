@@ -295,10 +295,7 @@ func TestSendAsyncDelivers(t *testing.T) {
 
 	// Wait for the async goroutine to complete.
 	deadline := time.After(5 * time.Second)
-	for {
-		if received.Load() {
-			break
-		}
+	for !received.Load() {
 		select {
 		case <-deadline:
 			t.Fatal("SendAsync did not deliver within timeout")

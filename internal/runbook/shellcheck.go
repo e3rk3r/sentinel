@@ -101,11 +101,11 @@ func ValidateShellSyntaxFromStrings(steps []ShellCheckInput) []ShellWarning {
 	var warnings []ShellWarning
 	for _, s := range steps {
 		switch s.Type {
-		case "run":
+		case stepTypeRun:
 			if w := ValidateShellSyntax(s.Step, s.Source); len(w) > 0 {
 				warnings = append(warnings, w...)
 			}
-		case "script":
+		case stepTypeScript:
 			if w := ValidateScriptSyntax(s.Step, s.Source); len(w) > 0 {
 				warnings = append(warnings, w...)
 			}
@@ -131,7 +131,7 @@ func FormatWarnings(warnings []ShellWarning) string {
 		if i > 0 {
 			b.WriteString("; ")
 		}
-		b.WriteString(fmt.Sprintf("step %d (line %d, col %d): %s", w.Step, w.Line, w.Column, w.Message))
+		fmt.Fprintf(&b, "step %d (line %d, col %d): %s", w.Step, w.Line, w.Column, w.Message)
 	}
 	return b.String()
 }

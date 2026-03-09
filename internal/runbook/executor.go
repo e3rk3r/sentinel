@@ -259,7 +259,7 @@ func (e *Executor) executeScript(ctx context.Context, step Step) (string, error)
 	if err := tmpFile.Close(); err != nil {
 		return "", fmt.Errorf("close temp script: %w", err)
 	}
-	if err := os.Chmod(tmpFile.Name(), 0700); err != nil {
+	if err := os.Chmod(tmpFile.Name(), 0700); err != nil { //nolint:gosec // G302: script needs execute permission
 		return "", fmt.Errorf("chmod temp script: %w", err)
 	}
 

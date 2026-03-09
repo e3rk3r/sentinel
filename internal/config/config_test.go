@@ -291,7 +291,7 @@ func TestLoadCreatesDefaultConfig(t *testing.T) {
 	if cfg.Token != "" {
 		t.Errorf("Token = %q, want empty", cfg.Token)
 	}
-	if cfg.LogLevel != "info" {
+	if cfg.LogLevel != "info" { //nolint:goconst // test fixture
 		t.Errorf("LogLevel = %q, want info", cfg.LogLevel)
 	}
 }

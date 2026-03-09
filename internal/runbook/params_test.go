@@ -112,10 +112,8 @@ func TestValidateParams(t *testing.T) {
 				if err.Error() != tc.errMsg {
 					t.Fatalf("error = %q, want %q", err.Error(), tc.errMsg)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}

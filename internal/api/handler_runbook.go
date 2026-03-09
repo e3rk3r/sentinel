@@ -410,7 +410,7 @@ func validateWebhookURL(raw string) error {
 	if err != nil {
 		return fmt.Errorf("webhook URL is invalid")
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
+	if u.Scheme != "http" && u.Scheme != "https" { //nolint:goconst // inline URL scheme check
 		return fmt.Errorf("webhook URL must use http or https")
 	}
 	if u.Host == "" {
