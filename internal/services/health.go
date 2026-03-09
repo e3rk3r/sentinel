@@ -98,7 +98,7 @@ func (hc *HealthChecker) SetNotifier(n *notify.Notifier) {
 // Start begins the periodic health check loop.
 func (hc *HealthChecker) Start(ctx context.Context) {
 	hc.startOnce.Do(func() {
-		childCtx, cancel := context.WithCancel(ctx)
+		childCtx, cancel := context.WithCancel(ctx) //nolint:gosec // G118: cancel stored in HealthChecker.stopFn, called in Stop
 		hc.stopFn = cancel
 		go hc.loop(childCtx)
 	})

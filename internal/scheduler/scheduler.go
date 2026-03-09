@@ -65,7 +65,7 @@ func New(r schedulerRepo, rr runbook.Repo, opts Options) *Service {
 	if maxConc <= 0 {
 		maxConc = defaultMaxConcurrent
 	}
-	runCtx, runCancel := context.WithCancel(context.Background())
+	runCtx, runCancel := context.WithCancel(context.Background()) //nolint:gosec // G118: runCancel stored in Service.runCancel, called in Stop
 	return &Service{
 		repo:        r,
 		runbookRepo: rr,
@@ -82,13 +82,13 @@ func (s *Service) Start(parent context.Context) {
 		return
 	}
 	s.startOnce.Do(func() {
-		ctx, cancel := context.WithCancel(parent)
+		ctx, cancel := context.WithCancel(parent) //nolint:gosec // G118: cancel stored in Service.stopFn, called in Stop
 		s.stopFn = cancel
 		s.doneCh = make(chan struct{})
 		// Replace default runCtx with one derived from the parent so
 		// that cancellation of the parent propagates to in-flight runs.
 		s.runCancel()
-		s.runCtx, s.runCancel = context.WithCancel(parent)
+		s.runCtx, s.runCancel = context.WithCancel(parent) //nolint:gosec // G118: runCancel called in Stop
 
 		go func() {
 			defer close(s.doneCh)

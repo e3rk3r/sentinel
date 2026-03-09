@@ -18,6 +18,14 @@ linters:
     - noctx
     - exhaustive
     - misspell
+  exclusions:
+    rules:
+      # httptest.NewRequest is the standard Go test pattern; it uses
+      # context.Background() internally, so the noctx production-code
+      # rule is not meaningful for test fixtures.
+      - path: _test\.go
+        linters:
+          - noctx
   settings:
     gosec:
       excludes:
