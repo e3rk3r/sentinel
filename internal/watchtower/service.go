@@ -72,6 +72,11 @@ type journalRepo interface {
 	PruneWatchtowerPresence(ctx context.Context, now time.Time) (int64, error)
 }
 
+// markerRepo covers marker pattern access for the pane content scanner.
+type markerRepo interface {
+	ListMarkerPatterns(ctx context.Context) ([]store.MarkerPattern, error)
+}
+
 // runtimeRepo covers key-value runtime state.
 type runtimeRepo interface {
 	GetWatchtowerRuntimeValue(ctx context.Context, key string) (string, error)
@@ -85,6 +90,7 @@ type watchtowerStore interface {
 	paneRuntimeRepo
 	journalRepo
 	runtimeRepo
+	markerRepo
 }
 
 // Compile-time check: *store.Store satisfies watchtowerStore.
@@ -112,6 +118,13 @@ type Service struct {
 
 	stopFn context.CancelFunc
 	doneCh chan struct{}
+
+	// markerCache holds the last loaded marker patterns and the time they
+	// were refreshed. Access is guarded by markerMu.
+	markerMu       sync.Mutex
+	markerCache    []store.MarkerPattern
+	markerCacheAt  time.Time
+	markerCacheTTL time.Duration
 }
 
 type windowAggregate struct {
@@ -136,9 +149,10 @@ func New(st watchtowerStore, tm tmuxClient, options Options) *Service {
 		options.TimelineRows = defaultTimelineRows
 	}
 	return &Service{
-		store:   st,
-		tmux:    tm,
-		options: options,
+		store:          st,
+		tmux:           tm,
+		options:        options,
+		markerCacheTTL: 30 * time.Second,
 	}
 }
 
@@ -212,6 +226,7 @@ func (s *Service) collectOnce(ctx context.Context) (err error) {
 		s.recordCollectMetrics(ctx, startedAt, sessionsCount, changedCount, err)
 	}()
 
+	s.refreshMarkerCache(ctx)
 	s.prunePresenceBestEffort(ctx)
 
 	sessions, proceed, err := s.listCollectSessions(ctx)

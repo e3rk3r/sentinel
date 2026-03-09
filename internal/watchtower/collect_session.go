@@ -373,7 +373,7 @@ func (c *collectSessionState) recordOutputMarker(
 		return nil
 	}
 
-	marker, severity, matched := detectTimelineMarker(tailPreview)
+	marker, severity, matched := detectTimelineMarker(tailPreview, c.service.cachedMarkerPatterns())
 	if !matched {
 		return nil
 	}
