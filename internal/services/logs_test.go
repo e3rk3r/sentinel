@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/opus-domini/sentinel/internal/daemon"
 )
 
 const (
@@ -18,26 +16,12 @@ const (
 
 func newLogsTestManager(goos string, runner commandRunner) *Manager {
 	return &Manager{
-		nowFn:    time.Now,
-		hostname: func() (string, error) { return "test-host", nil },
-		uidFn:    func() int { return 1000 },
-		goos:     goos,
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
-		commandRunner: runner,
+		nowFn:          time.Now,
+		hostname:       func() (string, error) { return "test-host", nil },
+		uidFn:          func() int { return 1000 },
+		goos:           goos,
+		customServices: builtinServicesRepo(goos),
+		commandRunner:  runner,
 	}
 }
 
@@ -180,21 +164,6 @@ func TestLogsUnsupportedManager(t *testing.T) {
 		hostname: func() (string, error) { return "test", nil },
 		uidFn:    func() int { return 1000 },
 		goos:     "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
 	}
 
 	// We can't directly trigger "unsupported manager" for built-in services

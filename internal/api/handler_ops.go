@@ -86,8 +86,10 @@ func (h *Handler) opsServiceAction(w http.ResponseWriter, r *http.Request) {
 		opsplane.ActionStart,
 		opsplane.ActionStop,
 		opsplane.ActionRestart,
+		opsplane.ActionEnable,
+		opsplane.ActionDisable,
 	}, req.Action) {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "action must be start, stop, or restart", nil)
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "action must be start, stop, restart, enable, or disable", nil)
 		return
 	}
 
@@ -617,8 +619,8 @@ func (h *Handler) opsUnitAction(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "unit is required", nil)
 		return
 	}
-	if !slices.Contains([]string{opsplane.ActionStart, opsplane.ActionStop, opsplane.ActionRestart}, req.Action) {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "action must be start, stop, or restart", nil)
+	if !slices.Contains([]string{opsplane.ActionStart, opsplane.ActionStop, opsplane.ActionRestart, opsplane.ActionEnable, opsplane.ActionDisable}, req.Action) {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "action must be start, stop, restart, enable, or disable", nil)
 		return
 	}
 	if !slices.Contains(validManagers, req.Manager) {

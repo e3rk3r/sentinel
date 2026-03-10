@@ -22,37 +22,49 @@ func (s *stubCustomServicesRepo) ListCustomServices(_ context.Context) ([]store.
 	return s.services, s.err
 }
 
+// builtinServicesRepo returns a stub repo with sentinel and sentinel-updater
+// registered as custom services, matching the systemd or launchd unit names.
+func builtinServicesRepo(goos string) *stubCustomServicesRepo {
+	manager := detectManager(goos)
+	return &stubCustomServicesRepo{
+		services: []store.CustomService{
+			{
+				Name:        ServiceNameSentinel,
+				DisplayName: "Sentinel service",
+				Manager:     manager,
+				Unit:        unitForService(manager, ServiceNameSentinel),
+				Scope:       scopeUser,
+			},
+			{
+				Name:        ServiceNameUpdater,
+				DisplayName: "Autoupdate timer",
+				Manager:     manager,
+				Unit:        unitForService(manager, ServiceNameUpdater),
+				Scope:       scopeUser,
+			},
+		},
+	}
+}
+
 const testHostname = "host-a"
+
+// probeActiveResponse is a canned systemctl show response indicating a
+// loaded, enabled and active unit. Used across multiple test files.
+const probeActiveResponse = "UnitFileState=enabled\nActiveState=active\nLoadState=loaded\n"
 
 func TestListServices(t *testing.T) {
 	t.Parallel()
 
 	fixedNow := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 	m := &Manager{
-		startedAt: fixedNow.Add(-10 * time.Minute),
-		nowFn:     func() time.Time { return fixedNow },
-		hostname:  func() (string, error) { return testHostname, nil },
-		uidFn:     func() int { return 1000 },
-		goos:      "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(scope string) (daemon.UserAutoUpdateServiceStatus, error) {
-			if scope != scopeUser {
-				t.Fatalf("scope = %q, want %q", scope, scopeUser)
-			}
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-				LastRunState:      "inactive",
-			}, nil
+		startedAt:      fixedNow.Add(-10 * time.Minute),
+		nowFn:          func() time.Time { return fixedNow },
+		hostname:       func() (string, error) { return testHostname, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
+			return probeActiveResponse, nil
 		},
 	}
 
@@ -79,27 +91,17 @@ func TestOverview(t *testing.T) {
 
 	fixedNow := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 	m := &Manager{
-		startedAt: fixedNow.Add(-2 * time.Hour),
-		nowFn:     func() time.Time { return fixedNow },
-		hostname:  func() (string, error) { return testHostname, nil },
-		uidFn:     func() int { return 1000 },
-		goos:      "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "failed",
-				LastRunState:      "inactive",
-			}, nil
+		startedAt:      fixedNow.Add(-2 * time.Hour),
+		nowFn:          func() time.Time { return fixedNow },
+		hostname:       func() (string, error) { return testHostname, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, args ...string) (string, error) {
+			if slices.Contains(args, updaterSystemdUnit) {
+				return "UnitFileState=enabled\nActiveState=failed\nLoadState=loaded\n", nil
+			}
+			return probeActiveResponse, nil
 		},
 	}
 
@@ -123,26 +125,11 @@ func TestActSystemdUser(t *testing.T) {
 
 	var calls [][]string
 	m := &Manager{
-		nowFn:    time.Now,
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
+		nowFn:          time.Now,
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("linux"),
 		commandRunner: func(_ context.Context, name string, args ...string) (string, error) {
 			row := append([]string{name}, args...)
 			calls = append(calls, row)
@@ -158,8 +145,15 @@ func TestActSystemdUser(t *testing.T) {
 		t.Fatalf("status.Name = %q, want %q", status.Name, ServiceNameSentinel)
 	}
 	want := []string{"systemctl", "--user", "restart", sentinelSystemdUnit}
-	if len(calls) == 0 || !reflect.DeepEqual(calls[0], want) {
-		t.Fatalf("first call = %v, want %v", calls, want)
+	found := false
+	for _, c := range calls {
+		if reflect.DeepEqual(c, want) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected %v among calls %v", want, calls)
 	}
 }
 
@@ -168,26 +162,11 @@ func TestActSystemdUpdater(t *testing.T) {
 
 	var calls [][]string
 	m := &Manager{
-		nowFn:    time.Now,
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
+		nowFn:          time.Now,
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("linux"),
 		commandRunner: func(_ context.Context, name string, args ...string) (string, error) {
 			row := append([]string{name}, args...)
 			calls = append(calls, row)
@@ -200,8 +179,15 @@ func TestActSystemdUpdater(t *testing.T) {
 		t.Fatalf("Act: %v", err)
 	}
 	want := []string{"systemctl", "--user", "stop", updaterSystemdUnit}
-	if len(calls) == 0 || !reflect.DeepEqual(calls[0], want) {
-		t.Fatalf("first call = %v, want %v", calls, want)
+	found := false
+	for _, c := range calls {
+		if reflect.DeepEqual(c, want) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected %v among calls %v", want, calls)
 	}
 }
 
@@ -211,41 +197,30 @@ func TestActSystemdUpdaterStartBootstrapsWhenMissing(t *testing.T) {
 	installed := false
 	var installOpts daemon.InstallUserAutoUpdateOptions
 	var calls [][]string
+
+	// The updater probe returns "not-found" until bootstrap installs it.
+	updaterProbeResponse := "UnitFileState=not-found\nActiveState=inactive\nLoadState=not-found\n"
 	m := &Manager{
-		nowFn:    time.Now,
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			if installed {
-				return daemon.UserAutoUpdateServiceStatus{
-					ServiceUnitExists: true,
-					TimerUnitExists:   true,
-					TimerEnabledState: "enabled",
-					TimerActiveState:  "active",
-				}, nil
-			}
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: false,
-				TimerUnitExists:   false,
-				TimerEnabledState: "not-found",
-				TimerActiveState:  "inactive",
-			}, nil
-		},
+		nowFn:          time.Now,
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("linux"),
 		installAutoUpdate: func(opts daemon.InstallUserAutoUpdateOptions) error {
 			installOpts = opts
 			installed = true
+			// After bootstrap, probe will return loaded.
+			updaterProbeResponse = probeActiveResponse
 			return nil
 		},
 		commandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			// Handle probe calls (systemctl show).
+			if name == cmdSystemctl && slices.Contains(args, "show") {
+				if slices.Contains(args, updaterSystemdUnit) {
+					return updaterProbeResponse, nil
+				}
+				return probeActiveResponse, nil
+			}
 			row := append([]string{name}, args...)
 			calls = append(calls, row)
 			return "", nil
@@ -280,40 +255,29 @@ func TestActSystemdUpdaterStartBootstrapsWhenMissing(t *testing.T) {
 func TestActSystemdUpdaterRetriesAfterUnitNotFound(t *testing.T) {
 	t.Parallel()
 
-	attempt := 0
+	startAttempt := 0
 	installed := false
-	var calls [][]string
+	var startCalls [][]string
 	m := &Manager{
-		nowFn:    time.Now,
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "inactive",
-			}, nil
-		},
+		nowFn:          time.Now,
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("linux"),
 		installAutoUpdate: func(opts daemon.InstallUserAutoUpdateOptions) error {
 			_ = opts
 			installed = true
 			return nil
 		},
 		commandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			// Handle probe calls (systemctl show).
+			if name == cmdSystemctl && slices.Contains(args, "show") {
+				return "UnitFileState=enabled\nActiveState=inactive\nLoadState=loaded\n", nil
+			}
 			row := append([]string{name}, args...)
-			calls = append(calls, row)
-			attempt++
-			if attempt == 1 {
+			startCalls = append(startCalls, row)
+			startAttempt++
+			if startAttempt == 1 {
 				return "", errors.New("systemctl --user start sentinel-updater.timer failed: Unit sentinel-updater.timer not found.")
 			}
 			return "", nil
@@ -327,8 +291,8 @@ func TestActSystemdUpdaterRetriesAfterUnitNotFound(t *testing.T) {
 	if !installed {
 		t.Fatal("expected updater bootstrap install to run after unit-not-found error")
 	}
-	if len(calls) != 2 {
-		t.Fatalf("command attempts = %d, want 2", len(calls))
+	if len(startCalls) != 2 {
+		t.Fatalf("command attempts = %d, want 2", len(startCalls))
 	}
 }
 
@@ -337,26 +301,11 @@ func TestActLaunchdStartBootstrapsWhenMissing(t *testing.T) {
 
 	var calls [][]string
 	m := &Manager{
-		nowFn:    time.Now,
-		uidFn:    func() int { return 1000 },
-		goos:     "darwin",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/Users/dev/Library/LaunchAgents/io.opusdomini.sentinel.plist",
-				UnitFileExists: true,
-				EnabledState:   "loaded",
-				ActiveState:    "inactive",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "loaded",
-				TimerActiveState:  "inactive",
-			}, nil
-		},
+		nowFn:          time.Now,
+		uidFn:          func() int { return 1000 },
+		goos:           "darwin",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("darwin"),
 		userServicePathFn: func() (string, error) {
 			return "/Users/dev/Library/LaunchAgents/io.opusdomini.sentinel.plist", nil
 		},
@@ -377,18 +326,34 @@ func TestActLaunchdStartBootstrapsWhenMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Act: %v", err)
 	}
+	// First two calls are probes for sentinel and updater (both return "not found").
+	// Then the action calls: print (check loaded) → bootstrap → kickstart.
 	expected := [][]string{
 		{"launchctl", "print", "gui/1000/" + sentinelLaunchdLabel},
 		{"launchctl", "bootstrap", "gui/1000", "/Users/dev/Library/LaunchAgents/io.opusdomini.sentinel.plist"},
 		{"launchctl", "kickstart", "-k", "gui/1000/" + sentinelLaunchdLabel},
 	}
-	if len(calls) < len(expected) {
-		t.Fatalf("calls = %v, want at least %d", calls, len(expected))
-	}
-	for i := range expected {
-		if !reflect.DeepEqual(calls[i], expected[i]) {
-			t.Fatalf("call[%d] = %v, want %v", i, calls[i], expected[i])
+	// Skip the initial probe calls (2 probes for list services before and after act).
+	actionCalls := calls[2:] // first 2 are probes for ListServices
+	// Filter to action calls: find the first "print" that's the loaded check
+	found := false
+	for i := range actionCalls {
+		if len(actionCalls) >= i+len(expected) {
+			match := true
+			for j := range expected {
+				if !reflect.DeepEqual(actionCalls[i+j], expected[j]) {
+					match = false
+					break
+				}
+			}
+			if match {
+				found = true
+				break
+			}
 		}
+	}
+	if !found {
+		t.Fatalf("expected action sequence %v within calls %v", expected, calls)
 	}
 }
 
@@ -396,29 +361,14 @@ func TestInspectSystemdService(t *testing.T) {
 	t.Parallel()
 
 	m := &Manager{
-		nowFn:    func() time.Time { return time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) },
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		hostname: func() (string, error) { return testHostname, nil },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
+		nowFn:          func() time.Time { return time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		hostname:       func() (string, error) { return testHostname, nil },
+		customServices: builtinServicesRepo("linux"),
 		commandRunner: func(_ context.Context, _ string, args ...string) (string, error) {
-			if len(args) < 2 || args[0] != argUser || args[1] != "show" {
-				t.Fatalf("unexpected command args: %v", args)
+			if !slices.Contains(args, "show") {
+				return "", errors.New("unexpected non-show command")
 			}
 			return strings.Join([]string{
 				"Id=sentinel.service",
@@ -476,10 +426,11 @@ func TestListServicesMergesCustomServices(t *testing.T) {
 	t.Parallel()
 
 	fixedNow := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+	builtins := builtinServicesRepo("linux")
 	repo := &stubCustomServicesRepo{
-		services: []store.CustomService{
-			{Name: "nginx", DisplayName: "Nginx", Manager: "systemd", Unit: "nginx.service", Scope: "system"},
-		},
+		services: append(builtins.services,
+			store.CustomService{Name: "nginx", DisplayName: "Nginx", Manager: "systemd", Unit: "nginx.service", Scope: "system"},
+		),
 	}
 	m := &Manager{
 		startedAt:      fixedNow.Add(-10 * time.Minute),
@@ -488,22 +439,6 @@ func TestListServicesMergesCustomServices(t *testing.T) {
 		uidFn:          func() int { return 1000 },
 		goos:           "linux",
 		customServices: repo,
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
 		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
 			return "ActiveState=active\nLoadState=loaded\nUnitFileState=enabled", nil
 		},
@@ -538,30 +473,14 @@ func TestListServicesCustomServicesError(t *testing.T) {
 		uidFn:          func() int { return 1000 },
 		goos:           "linux",
 		customServices: repo,
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
 	}
 
-	services, err := m.ListServices(context.Background())
-	if err != nil {
-		t.Fatalf("ListServices should not fail when custom services error: %v", err)
+	_, err := m.ListServices(context.Background())
+	if err == nil {
+		t.Fatal("ListServices should fail when custom services repo returns an error")
 	}
-	if len(services) != 2 {
-		t.Fatalf("len(services) = %d, want 2 (graceful degradation)", len(services))
+	if !strings.Contains(err.Error(), "db locked") {
+		t.Fatalf("error = %v, want containing 'db locked'", err)
 	}
 }
 
@@ -576,29 +495,19 @@ const (
 // newTestManager creates a Manager with sensible defaults for testing.
 // Override fields after creation as needed.
 func newTestManager(goos string, runner commandRunner) *Manager {
+	if runner == nil {
+		runner = func(_ context.Context, _ string, _ ...string) (string, error) {
+			return "", nil
+		}
+	}
 	return &Manager{
-		startedAt: time.Date(2026, 2, 15, 11, 0, 0, 0, time.UTC),
-		nowFn:     func() time.Time { return time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) },
-		hostname:  func() (string, error) { return testHostname, nil },
-		uidFn:     func() int { return 1000 },
-		goos:      goos,
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				ServiceUnitExists: true,
-				TimerUnitExists:   true,
-				TimerEnabledState: "enabled",
-				TimerActiveState:  "active",
-			}, nil
-		},
-		commandRunner: runner,
+		startedAt:      time.Date(2026, 2, 15, 11, 0, 0, 0, time.UTC),
+		nowFn:          func() time.Time { return time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) },
+		hostname:       func() (string, error) { return testHostname, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           goos,
+		customServices: builtinServicesRepo(goos),
+		commandRunner:  runner,
 	}
 }
 
@@ -792,9 +701,16 @@ func TestActLaunchdStop(t *testing.T) {
 	if len(calls) == 0 {
 		t.Fatal("expected at least one command call")
 	}
-	// First call should be bootout for stop.
-	if calls[0][0] != "launchctl" || calls[0][1] != "bootout" {
-		t.Fatalf("first call = %v, want launchctl bootout", calls[0])
+	// One of the calls should be bootout for stop.
+	foundBootout := false
+	for _, c := range calls {
+		if c[0] == "launchctl" && len(c) > 1 && c[1] == "bootout" {
+			foundBootout = true
+			break
+		}
+	}
+	if !foundBootout {
+		t.Fatalf("expected launchctl bootout among calls: %v", calls)
 	}
 }
 
@@ -1134,7 +1050,7 @@ func TestActByUnit(t *testing.T) {
 			unit:    "com.example.app",
 			scope:   "user",
 			manager: "launchd",
-			action:  "enable",
+			action:  "noop",
 			wantErr: "ops invalid action",
 		},
 	}

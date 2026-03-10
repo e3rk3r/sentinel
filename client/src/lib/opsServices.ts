@@ -52,6 +52,16 @@ export function withOptimisticServiceAction(
         ...service,
         activeState: 'restarting',
       }
+    case 'enable':
+      return {
+        ...service,
+        enabledState: 'enabled',
+      }
+    case 'disable':
+      return {
+        ...service,
+        enabledState: 'disabled',
+      }
   }
 }
 

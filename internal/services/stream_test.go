@@ -1,30 +1,22 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/opus-domini/sentinel/internal/daemon"
 )
 
 func TestStreamLogs_LaunchdUnsupported(t *testing.T) {
 	t.Parallel()
 
 	m := &Manager{
-		nowFn: time.Now,
-		goos:  "darwin",
-		uidFn: func() int { return 1000 },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/Users/dev/Library/LaunchAgents/io.opusdomini.sentinel.plist",
-				UnitFileExists: true,
-				EnabledState:   "loaded",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{}, nil
+		nowFn:          time.Now,
+		goos:           "darwin",
+		uidFn:          func() int { return 1000 },
+		customServices: builtinServicesRepo("darwin"),
+		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
+			return "loaded service info", nil
 		},
 	}
 

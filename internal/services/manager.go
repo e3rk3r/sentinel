@@ -27,6 +27,8 @@ const (
 	ActionStart   = "start"
 	ActionStop    = "stop"
 	ActionRestart = "restart"
+	ActionEnable  = "enable"
+	ActionDisable = "disable"
 
 	scopeUser   = "user"
 	scopeSystem = "system"
@@ -108,12 +110,10 @@ type Manager struct {
 	goos           string
 	customServices customServicesRepo
 
-	userStatusFn       func() (daemon.UserServiceStatus, error)
-	autoUpdateStatusFn func(scope string) (daemon.UserAutoUpdateServiceStatus, error)
-	installAutoUpdate  func(opts daemon.InstallUserAutoUpdateOptions) error
-	userServicePathFn  func() (string, error)
-	autoServicePathFn  func(scope string) (string, error)
-	commandRunner      commandRunner
+	installAutoUpdate func(opts daemon.InstallUserAutoUpdateOptions) error
+	userServicePathFn func() (string, error)
+	autoServicePathFn func(scope string) (string, error)
+	commandRunner     commandRunner
 }
 
 func NewManager(startedAt time.Time, csRepo customServicesRepo) *Manager {
@@ -122,18 +122,16 @@ func NewManager(startedAt time.Time, csRepo customServicesRepo) *Manager {
 		startedAt = now
 	}
 	return &Manager{
-		startedAt:          startedAt,
-		nowFn:              time.Now,
-		hostname:           os.Hostname,
-		uidFn:              os.Getuid,
-		goos:               runtime.GOOS,
-		customServices:     csRepo,
-		userStatusFn:       daemon.UserStatus,
-		autoUpdateStatusFn: daemon.UserAutoUpdateStatusForScope,
-		installAutoUpdate:  daemon.InstallUserAutoUpdate,
-		userServicePathFn:  daemon.UserServicePath,
-		autoServicePathFn:  daemon.UserAutoUpdateServicePathForScope,
-		commandRunner:      runCommand,
+		startedAt:         startedAt,
+		nowFn:             time.Now,
+		hostname:          os.Hostname,
+		uidFn:             os.Getuid,
+		goos:              runtime.GOOS,
+		customServices:    csRepo,
+		installAutoUpdate: daemon.InstallUserAutoUpdate,
+		userServicePathFn: daemon.UserServicePath,
+		autoServicePathFn: daemon.UserAutoUpdateServicePathForScope,
+		commandRunner:     runCommand,
 	}
 }
 
@@ -183,62 +181,25 @@ func (m *Manager) Overview(ctx context.Context) (Overview, error) {
 }
 
 func (m *Manager) ListServices(ctx context.Context) ([]ServiceStatus, error) {
-	baseStatus, err := m.userStatusFn()
-	if err != nil {
-		return nil, err
-	}
-
-	scope := detectScope(baseStatus.ServicePath, m.uidFn)
-	manager := detectManager(m.goos)
-
-	updaterStatus, err := m.autoUpdateStatusFn(scope)
-	if err != nil {
-		return nil, err
-	}
-
 	now := m.nowFn().UTC().Format(time.RFC3339)
-	services := []ServiceStatus{
-		{
-			Name:         ServiceNameSentinel,
-			DisplayName:  "Sentinel service",
-			Manager:      manager,
-			Scope:        scope,
-			Unit:         unitForService(manager, ServiceNameSentinel),
-			Exists:       baseStatus.UnitFileExists,
-			EnabledState: normalizeState(baseStatus.EnabledState),
-			ActiveState:  normalizeState(baseStatus.ActiveState),
-			UpdatedAt:    now,
-		},
-		{
-			Name:         ServiceNameUpdater,
-			DisplayName:  "Autoupdate timer",
-			Manager:      manager,
-			Scope:        scope,
-			Unit:         unitForService(manager, ServiceNameUpdater),
-			Exists:       updaterStatus.ServiceUnitExists || updaterStatus.TimerUnitExists,
-			EnabledState: normalizeState(updaterStatus.TimerEnabledState),
-			ActiveState:  normalizeState(updaterStatus.TimerActiveState),
-			LastRunState: normalizeState(updaterStatus.LastRunState),
-			UpdatedAt:    now,
-		},
-	}
+	var services []ServiceStatus
 
-	// Merge custom services from store.
 	if m.customServices != nil {
 		custom, err := m.customServices.ListCustomServices(ctx)
-		if err == nil {
-			for _, cs := range custom {
-				svc := ServiceStatus{
-					Name:        cs.Name,
-					DisplayName: cs.DisplayName,
-					Manager:     cs.Manager,
-					Unit:        cs.Unit,
-					Scope:       cs.Scope,
-					UpdatedAt:   now,
-				}
-				m.probeCustomService(ctx, &svc)
-				services = append(services, svc)
+		if err != nil {
+			return nil, err
+		}
+		for _, cs := range custom {
+			svc := ServiceStatus{
+				Name:        cs.Name,
+				DisplayName: cs.DisplayName,
+				Manager:     cs.Manager,
+				Unit:        cs.Unit,
+				Scope:       cs.Scope,
+				UpdatedAt:   now,
 			}
+			m.probeCustomService(ctx, &svc)
+			services = append(services, svc)
 		}
 	}
 
@@ -376,11 +337,18 @@ func (m *Manager) Inspect(ctx context.Context, name string) (ServiceInspect, err
 }
 
 func (m *Manager) actSystemd(ctx context.Context, scope, serviceName, action string) error {
+	unit := unitForService(managerSystemd, serviceName)
+
+	// Enable/disable only change the unit file state, not the runtime state.
+	if action == ActionEnable || action == ActionDisable {
+		return m.actSystemdUnit(ctx, scope, unit, action)
+	}
+
 	args := make([]string, 0, 4)
 	if strings.EqualFold(scope, scopeUser) {
 		args = append(args, "--user")
 	}
-	args = append(args, action, unitForService(managerSystemd, serviceName))
+	args = append(args, action, unit)
 	_, err := m.commandRunner(ctx, "systemctl", args...)
 	if err != nil {
 		if serviceName == ServiceNameUpdater &&
@@ -486,6 +454,18 @@ func (m *Manager) actLaunchd(ctx context.Context, scope, serviceName, action str
 		_, err := m.commandRunner(ctx, "launchctl", "kickstart", "-k", target)
 		if err != nil {
 			return fmt.Errorf("launchd %s failed: %w", action, err)
+		}
+		return nil
+	case ActionEnable:
+		_, err := m.commandRunner(ctx, "launchctl", "enable", target)
+		if err != nil {
+			return fmt.Errorf("launchd enable failed: %w", err)
+		}
+		return nil
+	case ActionDisable:
+		_, err := m.commandRunner(ctx, "launchctl", "disable", target)
+		if err != nil {
+			return fmt.Errorf("launchd disable failed: %w", err)
 		}
 		return nil
 	default:
@@ -611,7 +591,7 @@ func findServiceStatus(list []ServiceStatus, name string) (ServiceStatus, bool) 
 
 func isValidAction(action string) bool {
 	switch action {
-	case ActionStart, ActionStop, ActionRestart:
+	case ActionStart, ActionStop, ActionRestart, ActionEnable, ActionDisable:
 		return true
 	default:
 		return false
@@ -965,6 +945,18 @@ func (m *Manager) actLaunchdUnit(ctx context.Context, scope, unit, action string
 		_, err := m.commandRunner(ctx, "launchctl", "kickstart", "-k", target)
 		if err != nil {
 			return fmt.Errorf("launchd %s failed: %w", action, err)
+		}
+		return nil
+	case ActionEnable:
+		_, err := m.commandRunner(ctx, "launchctl", "enable", target)
+		if err != nil {
+			return fmt.Errorf("launchd enable failed: %w", err)
+		}
+		return nil
+	case ActionDisable:
+		_, err := m.commandRunner(ctx, "launchctl", "disable", target)
+		if err != nil {
+			return fmt.Errorf("launchd disable failed: %w", err)
 		}
 		return nil
 	default:

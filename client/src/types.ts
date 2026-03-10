@@ -146,7 +146,12 @@ export type StorageFlushResponse = {
   flushedAt: string
 }
 
-export type OpsServiceAction = 'start' | 'stop' | 'restart'
+export type OpsServiceAction =
+  | 'start'
+  | 'stop'
+  | 'restart'
+  | 'enable'
+  | 'disable'
 
 export type OpsServiceStatus = {
   name: string

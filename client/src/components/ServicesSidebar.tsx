@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TooltipHelper } from '@/components/TooltipHelper'
 import { cn } from '@/lib/utils'
-import { filterOpsServicesByQuery, isOpsServiceActive } from '@/lib/opsServices'
+import { filterOpsServicesByQuery } from '@/lib/opsServices'
 
 type ServicesSidebarProps = {
   isOpen: boolean
@@ -31,9 +31,6 @@ function statusDot(service: OpsServiceStatus): string {
   if (state === 'failed') return 'bg-red-500'
   return 'bg-muted-foreground/50'
 }
-
-/** Names reserved by the backend (built-in services). */
-const builtinNames = new Set(['sentinel', 'sentinel-updater'])
 
 export default function ServicesSidebar({
   isOpen,
@@ -194,19 +191,17 @@ export default function ServicesSidebar({
                       <span className="rounded border border-border-subtle bg-surface-overlay px-1 text-[10px] text-muted-foreground">
                         {service.scope}
                       </span>
-                      {!builtinNames.has(service.name) && (
-                        <TooltipHelper content="Remove custom service">
-                          <button
-                            type="button"
-                            className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-red-500/20 hover:text-red-300"
-                            onClick={() => void handleRemove(service.name)}
-                            disabled={removing === service.name}
-                            aria-label={`Remove ${service.displayName}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </TooltipHelper>
-                      )}
+                      <TooltipHelper content="Unpin service">
+                        <button
+                          type="button"
+                          className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-red-500/20 hover:text-red-300"
+                          onClick={() => void handleRemove(service.name)}
+                          disabled={removing === service.name}
+                          aria-label={`Unpin ${service.displayName}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </TooltipHelper>
                     </div>
                   </div>
                   <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -215,19 +210,6 @@ export default function ServicesSidebar({
                         {service.unit}
                       </span>
                     </TooltipHelper>
-                    <span>·</span>
-                    <span
-                      className={cn(
-                        'shrink-0',
-                        isOpsServiceActive(service)
-                          ? 'text-emerald-400'
-                          : service.activeState === 'failed'
-                            ? 'text-red-400'
-                            : '',
-                      )}
-                    >
-                      {service.activeState}
-                    </span>
                   </div>
                 </div>
               ))}

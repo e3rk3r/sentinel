@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/opus-domini/sentinel/internal/alerts"
-	"github.com/opus-domini/sentinel/internal/daemon"
 )
 
 const testHealthHost = "test"
@@ -111,15 +111,13 @@ func TestHealthCheckerStartStop(t *testing.T) {
 	t.Parallel()
 
 	mgr := &Manager{
-		nowFn:    time.Now,
-		hostname: func() (string, error) { return testHealthHost, nil },
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{ActiveState: "active", EnabledState: "enabled", UnitFileExists: true, ServicePath: "/home/dev/.config/systemd/user/sentinel.service"}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{TimerActiveState: "active", TimerEnabledState: "enabled", TimerUnitExists: true}, nil
+		nowFn:          time.Now,
+		hostname:       func() (string, error) { return testHealthHost, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
+			return probeActiveResponse, nil
 		},
 	}
 	repo := &stubAlertsRepo{}
@@ -145,24 +143,16 @@ func TestCheckServicesRaisesAlertOnFailedService(t *testing.T) {
 
 	repo := &stubAlertsRepo{}
 	mgr := &Manager{
-		nowFn:    time.Now,
-		hostname: func() (string, error) { return testHealthHost, nil },
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "failed",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				TimerUnitExists:   true,
-				TimerActiveState:  "active",
-				TimerEnabledState: "enabled",
-			}, nil
+		nowFn:          time.Now,
+		hostname:       func() (string, error) { return testHealthHost, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, args ...string) (string, error) {
+			if slices.Contains(args, sentinelSystemdUnit) {
+				return "UnitFileState=enabled\nActiveState=failed\nLoadState=loaded\n", nil
+			}
+			return probeActiveResponse, nil
 		},
 	}
 
@@ -198,24 +188,13 @@ func TestCheckServicesResolvesOnActive(t *testing.T) {
 
 	repo := &stubAlertsRepo{}
 	mgr := &Manager{
-		nowFn:    time.Now,
-		hostname: func() (string, error) { return testHealthHost, nil },
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:    "/home/dev/.config/systemd/user/sentinel.service",
-				UnitFileExists: true,
-				EnabledState:   "enabled",
-				ActiveState:    "active",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{
-				TimerUnitExists:   true,
-				TimerActiveState:  "running",
-				TimerEnabledState: "enabled",
-			}, nil
+		nowFn:          time.Now,
+		hostname:       func() (string, error) { return testHealthHost, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
+			return probeActiveResponse, nil
 		},
 	}
 
@@ -253,29 +232,29 @@ func TestCheckMetricsNilManager(t *testing.T) {
 func TestCheckServicesListError(t *testing.T) {
 	t.Parallel()
 
-	repo := &stubAlertsRepo{}
+	alertsRepo := &stubAlertsRepo{}
 	mgr := &Manager{
 		nowFn: time.Now,
 		goos:  "linux",
 		uidFn: func() int { return 1000 },
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{}, errors.New("daemon unavailable")
+		customServices: &stubCustomServicesRepo{
+			err: errors.New("daemon unavailable"),
 		},
 	}
 
 	hc := &HealthChecker{
 		manager:    mgr,
-		alerts:     repo,
+		alerts:     alertsRepo,
 		thresholds: AlertThresholds{CPUPercent: 99, MemPercent: 99, DiskPercent: 99},
 	}
 
 	// Should not panic, just log warning.
 	hc.checkServices(context.Background())
 
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
-	if len(repo.upserted) != 0 {
-		t.Fatalf("expected no alerts on list error, got %d", len(repo.upserted))
+	alertsRepo.mu.Lock()
+	defer alertsRepo.mu.Unlock()
+	if len(alertsRepo.upserted) != 0 {
+		t.Fatalf("expected no alerts on list error, got %d", len(alertsRepo.upserted))
 	}
 }
 
@@ -425,19 +404,13 @@ func TestCheckMetricsHighThresholds(t *testing.T) {
 
 	repo := &stubAlertsRepo{}
 	mgr := &Manager{
-		nowFn:    time.Now,
-		hostname: func() (string, error) { return testHealthHost, nil },
-		uidFn:    func() int { return 1000 },
-		goos:     "linux",
-		userStatusFn: func() (daemon.UserServiceStatus, error) {
-			return daemon.UserServiceStatus{
-				ServicePath:  "/home/dev/.config/systemd/user/sentinel.service",
-				ActiveState:  "active",
-				EnabledState: "enabled",
-			}, nil
-		},
-		autoUpdateStatusFn: func(string) (daemon.UserAutoUpdateServiceStatus, error) {
-			return daemon.UserAutoUpdateServiceStatus{TimerActiveState: "active", TimerEnabledState: "enabled"}, nil
+		nowFn:          time.Now,
+		hostname:       func() (string, error) { return testHealthHost, nil },
+		uidFn:          func() int { return 1000 },
+		goos:           "linux",
+		customServices: builtinServicesRepo("linux"),
+		commandRunner: func(_ context.Context, _ string, _ ...string) (string, error) {
+			return probeActiveResponse, nil
 		},
 	}
 
