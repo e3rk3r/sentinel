@@ -6,6 +6,7 @@ type MetaContextValue = {
   version: string
   timezone: string
   locale: string
+  hostname: string
   unauthorized: boolean
   loaded: boolean
 }

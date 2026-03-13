@@ -298,12 +298,14 @@ func (h *Handler) meta(w http.ResponseWriter, _ *http.Request) {
 	tz := h.timezone
 	loc := h.locale
 	h.mu.Unlock()
+	host, _ := os.Hostname()
 	writeData(w, http.StatusOK, map[string]any{
 		"tokenRequired": h.guard.TokenRequired(),
 		"defaultCwd":    defaultCwd,
 		"version":       version,
 		"timezone":      tz,
 		"locale":        loc,
+		"hostname":      host,
 	})
 }
 

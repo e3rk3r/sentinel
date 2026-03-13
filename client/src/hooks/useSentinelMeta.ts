@@ -7,6 +7,7 @@ type MetaResponse = {
   version?: string
   timezone?: string
   locale?: string
+  hostname?: string
 }
 
 export function useSentinelMeta() {
@@ -25,6 +26,7 @@ export function useSentinelMeta() {
           version: 'dev',
           timezone: 'UTC',
           locale: '',
+          hostname: '',
           unauthorized: true,
         }
       }
@@ -39,6 +41,7 @@ export function useSentinelMeta() {
         version: (payload.data?.version ?? 'dev').trim() || 'dev',
         timezone: (payload.data?.timezone ?? 'UTC').trim() || 'UTC',
         locale: (payload.data?.locale ?? '').trim(),
+        hostname: (payload.data?.hostname ?? '').trim(),
         unauthorized: false,
       }
     },
@@ -54,6 +57,7 @@ export function useSentinelMeta() {
         version: 'dev',
         timezone: 'UTC',
         locale: '',
+        hostname: '',
         unauthorized: false,
       },
     [metaQuery.data],
@@ -65,6 +69,7 @@ export function useSentinelMeta() {
     version: value.version,
     timezone: value.timezone,
     locale: value.locale,
+    hostname: value.hostname,
     unauthorized: value.unauthorized,
     loaded: metaQuery.isFetched,
   }

@@ -837,7 +837,7 @@ function ServicesPage() {
         <div className="grid min-h-0 grid-rows-[auto_1fr] gap-2 overflow-hidden p-2 md:gap-3 md:p-3">
           <section className="grid gap-2">
             {browseUnitTypes.length > 0 && (
-              <div className="flex flex-wrap items-center justify-center gap-1 rounded-lg border border-border-subtle bg-surface-elevated px-2 py-1.5">
+              <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 rounded-lg border border-border-subtle bg-surface-elevated px-2 py-1.5">
                 <button
                   type="button"
                   className={cn(
@@ -913,63 +913,64 @@ function ServicesPage() {
                     selected={svcStateFilter === 'failed'}
                   />
                 </div>
-                <div className="flex items-center justify-center gap-3 rounded-lg border border-border-subtle bg-surface-elevated px-2 py-1.5 md:hidden">
+                <div className="flex items-center justify-center gap-1 md:hidden">
                   <button
                     type="button"
                     className={cn(
-                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground',
-                      svcStateFilter === 'all' &&
-                        'underline underline-offset-2',
+                      'flex h-6 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] transition-colors',
+                      svcStateFilter === 'all'
+                        ? 'border-cyan-500/40 bg-cyan-500/10 text-foreground'
+                        : 'border-border-subtle text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => setSvcStateFilter('all')}
+                    aria-pressed={svcStateFilter === 'all'}
                   >
-                    <Layers className="h-3.5 w-3.5" />
-                    <span className="font-semibold text-foreground">
-                      {stats.total}
-                    </span>
-                    total
+                    <Layers className="h-3 w-3" />
+                    <span className="font-semibold">{stats.total}</span>
                   </button>
                   <button
                     type="button"
                     className={cn(
-                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-emerald-400',
-                      svcStateFilter === 'active' &&
-                        'underline underline-offset-2',
+                      'flex h-6 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] transition-colors',
+                      svcStateFilter === 'active'
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                        : 'border-border-subtle text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => toggleStateFilter('active')}
+                    aria-pressed={svcStateFilter === 'active'}
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <CheckCircle2 className="h-3 w-3" />
                     <span className="font-semibold">{stats.active}</span>
-                    active
                   </button>
                   <button
                     type="button"
                     className={cn(
-                      'flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground',
-                      svcStateFilter === 'inactive' &&
-                        'underline underline-offset-2',
+                      'flex h-6 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] transition-colors',
+                      svcStateFilter === 'inactive'
+                        ? 'border-cyan-500/40 bg-cyan-500/10 text-foreground'
+                        : 'border-border-subtle text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => toggleStateFilter('inactive')}
+                    aria-pressed={svcStateFilter === 'inactive'}
                   >
-                    <CircleOff className="h-3.5 w-3.5" />
+                    <CircleOff className="h-3 w-3" />
                     <span className="font-semibold">{stats.inactive}</span>
-                    inactive
                   </button>
                   <button
                     type="button"
                     className={cn(
-                      'flex cursor-pointer items-center gap-1.5 text-[11px]',
-                      Number(stats.failed) > 0
-                        ? 'text-red-400'
-                        : 'text-muted-foreground',
-                      svcStateFilter === 'failed' &&
-                        'underline underline-offset-2',
+                      'flex h-6 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] transition-colors',
+                      svcStateFilter === 'failed'
+                        ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                        : Number(stats.failed) > 0
+                          ? 'border-red-500/30 text-red-400 hover:text-red-300'
+                          : 'border-border-subtle text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => toggleStateFilter('failed')}
+                    aria-pressed={svcStateFilter === 'failed'}
                   >
-                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <AlertTriangle className="h-3 w-3" />
                     <span className="font-semibold">{stats.failed}</span>
-                    failed
                   </button>
                 </div>
               </>

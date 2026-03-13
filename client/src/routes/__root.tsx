@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
@@ -165,6 +165,11 @@ function RootComponent() {
 
   const { offline, retry } = useServerStatus()
   const meta = useSentinelMeta()
+
+  useEffect(() => {
+    document.title = meta.hostname ? `Sentinel - ${meta.hostname}` : 'Sentinel'
+  }, [meta.hostname])
+
   const authenticated = !meta.tokenRequired || !meta.unauthorized
   const needsTokenGate = meta.loaded && meta.tokenRequired && meta.unauthorized
   const showOutlet = meta.loaded && !needsTokenGate
