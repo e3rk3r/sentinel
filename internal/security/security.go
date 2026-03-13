@@ -85,7 +85,7 @@ func (g *Guard) CheckOrigin(r *http.Request) error {
 	}
 
 	scheme := "http"
-	if r.TLS != nil {
+	if requestUsesTLS(r) {
 		scheme = "https"
 	}
 	if parsed.Scheme != scheme || parsed.Host != r.Host {

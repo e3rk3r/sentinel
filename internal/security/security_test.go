@@ -40,6 +40,7 @@ func TestCheckOrigin(t *testing.T) {
 		origin         string
 		host           string
 		tls            bool
+		forwarded      string
 		wantErr        error
 	}{
 		{
@@ -87,6 +88,12 @@ func TestCheckOrigin(t *testing.T) {
 			origin: "http://myhost:8080",
 			host:   "myhost:8080",
 		},
+		{
+			name:      "reverse proxy forwarded https",
+			origin:    "https://myhost.ts.net",
+			host:      "myhost.ts.net",
+			forwarded: "https",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -99,6 +106,9 @@ func TestCheckOrigin(t *testing.T) {
 			}
 			if tt.tls {
 				r.TLS = &tls.ConnectionState{}
+			}
+			if tt.forwarded != "" {
+				r.Header.Set("X-Forwarded-Proto", tt.forwarded)
 			}
 
 			err := g.CheckOrigin(r)
