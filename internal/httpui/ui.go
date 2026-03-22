@@ -691,7 +691,7 @@ func newAttachErrChannel() (chan error, func(error)) {
 
 func startPTYReadLoop(pty *term.PTY, wsConn *ws.Conn, sendErr func(error)) {
 	go func() {
-		buf := make([]byte, 4096)
+		buf := make([]byte, 32768)
 		for {
 			n, readErr := pty.Read(buf)
 			if n > 0 {

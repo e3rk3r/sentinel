@@ -291,8 +291,8 @@ func TestLoadCreatesDefaultConfig(t *testing.T) {
 	if cfg.Token != "" {
 		t.Errorf("Token = %q, want empty", cfg.Token)
 	}
-	if cfg.LogLevel != "info" { //nolint:goconst // test fixture
-		t.Errorf("LogLevel = %q, want info", cfg.LogLevel)
+	if cfg.LogLevel != DefaultLogLevel {
+		t.Errorf("LogLevel = %q, want %s", cfg.LogLevel, DefaultLogLevel)
 	}
 }
 
@@ -812,8 +812,8 @@ func TestLoadDefaultValuesWithEmptyConfig(t *testing.T) {
 	if cfg.Token != "" {
 		t.Errorf("Token = %q, want empty", cfg.Token)
 	}
-	if cfg.LogLevel != "info" {
-		t.Errorf("LogLevel = %q, want info", cfg.LogLevel)
+	if cfg.LogLevel != DefaultLogLevel {
+		t.Errorf("LogLevel = %q, want %s", cfg.LogLevel, DefaultLogLevel)
 	}
 	if cfg.CookieSecure != CookieSecureAuto {
 		t.Errorf("CookieSecure = %q, want auto", cfg.CookieSecure)

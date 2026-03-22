@@ -18,6 +18,8 @@ const (
 	CookieSecureAuto   = "auto"
 	CookieSecureAlways = "always"
 	CookieSecureNever  = "never"
+
+	DefaultLogLevel = "info"
 )
 
 type AlertThresholds struct {
@@ -237,7 +239,7 @@ func applyCoreConfig(cfg *Config, file map[string]string) {
 		false,
 	)
 
-	cfg.LogLevel = "info"
+	cfg.LogLevel = DefaultLogLevel
 	if level := readRawEnvOrFile("SENTINEL_LOG_LEVEL", "log_level", file); level != "" {
 		cfg.LogLevel = strings.ToLower(level)
 	}
@@ -574,7 +576,7 @@ func writeDefaultConfig(path string) {
 
 func splitCSV(s string) []string {
 	var out []string
-	for _, p := range strings.Split(s, ",") {
+	for p := range strings.SplitSeq(s, ",") {
 		if v := strings.TrimSpace(p); v != "" {
 			out = append(out, v)
 		}
