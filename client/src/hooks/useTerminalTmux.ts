@@ -91,6 +91,7 @@ type UseTerminalTmuxResult = {
   focusTerminal: () => void
   zoomIn: () => void
   zoomOut: () => void
+  reconnectActiveSession: () => void
 }
 
 export function useTerminalTmux({
@@ -1029,6 +1030,15 @@ export function useTerminalTmux({
     }
   }, [disposeRuntime])
 
+  const reconnectActiveSession = useCallback(() => {
+    const sessionName = activeSessionRef.current.trim()
+    if (sessionName === '') return
+    const runtime = runtimesRef.current.get(sessionName)
+    if (!runtime) return
+    if (runtime.socket?.readyState === WebSocket.OPEN) return
+    connectRuntime(runtime, { resetTerminal: false })
+  }, [connectRuntime])
+
   return {
     getTerminalHostRef,
     connectionState,
@@ -1044,5 +1054,6 @@ export function useTerminalTmux({
     focusTerminal,
     zoomIn,
     zoomOut,
+    reconnectActiveSession,
   }
 }

@@ -154,6 +154,7 @@ function TmuxPage() {
     focusTerminal,
     zoomIn,
     zoomOut,
+    reconnectActiveSession,
   } = useTerminalTmux({
     openTabs: tabsState.openTabs,
     activeSession: tabsState.activeSession,
@@ -259,7 +260,7 @@ function TmuxPage() {
   })
 
   // ---- Events socket hook ----
-  useTmuxEventsSocket({
+  const { syncActivityDelta } = useTmuxEventsSocket({
     api,
     authenticated,
     tokenRequired,
@@ -281,6 +282,25 @@ function TmuxPage() {
     timelineSessionFilterRef: timeline.timelineSessionFilterRef,
     loadTimelineRef: timeline.loadTimelineRef,
   })
+
+  // ---- Resync handler ----
+  const handleResync = useCallback(() => {
+    const active = tabsState.activeSession.trim()
+    if (active === '') return
+    inspector.clearPendingInspectorSessionState(active)
+    void sessionCRUD.refreshSessions()
+    void inspector.refreshInspector(active)
+    void syncActivityDelta({ reason: 'manual-resync', force: true })
+    reconnectActiveSession()
+    pushSuccessToast('Resync', 'Session state refreshed')
+  }, [
+    tabsState.activeSession,
+    inspector,
+    sessionCRUD,
+    syncActivityDelta,
+    reconnectActiveSession,
+    pushSuccessToast,
+  ])
 
   // ---- Runbook run from timeline ----
   const handleRunRunbookFromTimeline = useCallback(
@@ -398,6 +418,7 @@ function TmuxPage() {
           void timeline.loadTimeline({ quiet: true })
         }}
         onOpenCreateSession={() => setCreateSessionOpen(true)}
+        onResync={handleResync}
       />
 
       <GuardrailsDialog

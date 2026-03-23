@@ -50,6 +50,7 @@ type TmuxTerminalPanelProps = {
   onOpenGuardrails?: () => void
   onOpenTimeline?: () => void
   onOpenCreateSession?: () => void
+  onResync?: () => void
 }
 
 export default function TmuxTerminalPanel({
@@ -89,6 +90,7 @@ export default function TmuxTerminalPanel({
   onOpenGuardrails,
   onOpenTimeline,
   onOpenCreateSession,
+  onResync,
 }: TmuxTerminalPanelProps) {
   const isMobileLayout = useIsMobileLayout()
   const lockedTouchIDsRef = useRef<Set<number>>(new Set())
@@ -219,7 +221,7 @@ export default function TmuxTerminalPanel({
               <History className="h-3.5 w-3.5" />
             </Button>
           </TooltipHelper>
-          <ConnectionBadge state={connectionState} />
+          <ConnectionBadge state={connectionState} onClick={onResync} />
         </div>
       </header>
 

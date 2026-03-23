@@ -811,6 +811,16 @@ export function useInspector(options: UseInspectorOptions) {
       { method: 'POST', body: '{}' },
     )
       .then(() => {
+        removePendingWindowCreate(
+          pendingCreateWindowsRef.current,
+          active,
+          nextIdx,
+        )
+        clearPendingWindowPaneFloor(
+          pendingWindowPaneFloorsRef.current,
+          active,
+          nextIdx,
+        )
         void refreshInspector(active, { background: true })
         void refreshSessions()
       })
@@ -835,6 +845,16 @@ export function useInspector(options: UseInspectorOptions) {
                 },
               )
                 .then(() => {
+                  removePendingWindowCreate(
+                    pendingCreateWindowsRef.current,
+                    active,
+                    nextIdx,
+                  )
+                  clearPendingWindowPaneFloor(
+                    pendingWindowPaneFloorsRef.current,
+                    active,
+                    nextIdx,
+                  )
                   void refreshInspector(active, { background: true })
                   void refreshSessions()
                 })
@@ -938,6 +958,11 @@ export function useInspector(options: UseInspectorOptions) {
         { method: 'POST', body: JSON.stringify({ index: windowIndex }) },
       )
         .then(() => {
+          removePendingWindowClose(
+            pendingCloseWindowsRef.current,
+            active,
+            windowIndex,
+          )
           void refreshInspector(active, { background: true })
           void refreshSessions()
         })
@@ -962,6 +987,11 @@ export function useInspector(options: UseInspectorOptions) {
                   },
                 )
                   .then(() => {
+                    removePendingWindowClose(
+                      pendingCloseWindowsRef.current,
+                      active,
+                      windowIndex,
+                    )
                     void refreshInspector(active, { background: true })
                     void refreshSessions()
                   })
@@ -1098,6 +1128,14 @@ export function useInspector(options: UseInspectorOptions) {
         { method: 'POST', body: JSON.stringify({ paneId: paneID }) },
       )
         .then(() => {
+          removePendingPaneClose(pendingClosePanesRef.current, active, paneID)
+          if (removedWindow && removed) {
+            removePendingWindowClose(
+              pendingCloseWindowsRef.current,
+              active,
+              removed.windowIndex,
+            )
+          }
           void refreshInspector(active, { background: true })
           void refreshSessions()
         })
@@ -1125,6 +1163,18 @@ export function useInspector(options: UseInspectorOptions) {
                   },
                 )
                   .then(() => {
+                    removePendingPaneClose(
+                      pendingClosePanesRef.current,
+                      active,
+                      paneID,
+                    )
+                    if (removedWindow && removed) {
+                      removePendingWindowClose(
+                        pendingCloseWindowsRef.current,
+                        active,
+                        removed.windowIndex,
+                      )
+                    }
                     void refreshInspector(active, { background: true })
                     void refreshSessions()
                   })
@@ -1265,6 +1315,11 @@ export function useInspector(options: UseInspectorOptions) {
         },
       )
         .then(() => {
+          clearPendingWindowPaneFloor(
+            pendingWindowPaneFloorsRef.current,
+            active,
+            target.windowIndex,
+          )
           void refreshInspector(active, { background: true })
           void refreshSessions()
         })
@@ -1292,6 +1347,11 @@ export function useInspector(options: UseInspectorOptions) {
                   },
                 )
                   .then(() => {
+                    clearPendingWindowPaneFloor(
+                      pendingWindowPaneFloorsRef.current,
+                      active,
+                      target.windowIndex,
+                    )
                     void refreshInspector(active, { background: true })
                     void refreshSessions()
                   })
