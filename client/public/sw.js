@@ -1,7 +1,8 @@
-const CACHE_VERSION = 'sentinel-v5'
+const CACHE_VERSION = 'sentinel-v6'
 const CORE_CACHE = `${CACHE_VERSION}-core`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 const APP_SHELL = '/index.html'
+const APP_SHELL_ASSET_PATHS = new Set(['/assets/app.js', '/assets/app.css'])
 
 const CORE_URLS = [
   APP_SHELL,
@@ -61,6 +62,10 @@ function isRuntimeAssetPath(pathname) {
   )
 }
 
+function isAppShellAssetPath(pathname) {
+  return APP_SHELL_ASSET_PATHS.has(pathname)
+}
+
 function isHTMLResponse(response) {
   const contentType = response.headers.get('content-type') || ''
   return contentType.toLowerCase().includes('text/html')
@@ -96,6 +101,17 @@ async function readValidCachedResponse(cache, request) {
   return cached
 }
 
+async function readAnyValidCachedResponse(request) {
+  const runtimeCache = await caches.open(RUNTIME_CACHE)
+  const runtimeCached = await readValidCachedResponse(runtimeCache, request)
+  if (runtimeCached) {
+    return runtimeCached
+  }
+
+  const coreCache = await caches.open(CORE_CACHE)
+  return readValidCachedResponse(coreCache, request)
+}
+
 async function pruneInvalidRuntimeCache() {
   const cache = await caches.open(RUNTIME_CACHE)
   const keys = await cache.keys()
@@ -122,12 +138,17 @@ async function networkFirst(request) {
     }
     return response
   } catch {
-    const cache = await caches.open(RUNTIME_CACHE)
-    const cached = await readValidCachedResponse(cache, request)
+    const cached = await readAnyValidCachedResponse(request)
     if (cached) {
       return cached
     }
-    return caches.match(APP_SHELL)
+    if (request.mode === 'navigate') {
+      return caches.match(APP_SHELL)
+    }
+    return new Response('offline', {
+      status: 503,
+      statusText: 'Service Unavailable',
+    })
   }
 }
 
@@ -168,6 +189,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.mode === 'navigate') {
+    event.respondWith(networkFirst(event.request))
+    return
+  }
+
+  if (isAppShellAssetPath(requestUrl.pathname)) {
     event.respondWith(networkFirst(event.request))
     return
   }

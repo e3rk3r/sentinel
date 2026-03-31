@@ -41,9 +41,11 @@ type tmuxService interface {
 	SelectWindow(ctx context.Context, session string, index int) error
 	SelectPane(ctx context.Context, paneID string) error
 	NewWindow(ctx context.Context, session string) (tmux.NewWindowResult, error)
+	NewWindowWithOptions(ctx context.Context, session, name, cwd string) (tmux.NewWindowResult, error)
 	KillWindow(ctx context.Context, session string, index int) error
 	KillPane(ctx context.Context, paneID string) error
 	SplitPane(ctx context.Context, paneID, direction string) (string, error)
+	SendKeys(ctx context.Context, paneID, keys string, enter bool) error
 }
 
 type opsControlPlane interface {
@@ -152,6 +154,19 @@ type sessionPresetRepo interface {
 	MarkSessionPresetLaunched(ctx context.Context, name string) error
 }
 
+type tmuxLauncherReadRepo interface {
+	ListTmuxLaunchers(ctx context.Context) ([]store.TmuxLauncher, error)
+	GetTmuxLauncher(ctx context.Context, id string) (store.TmuxLauncher, error)
+}
+
+type tmuxLauncherWriteRepo interface {
+	CreateTmuxLauncher(ctx context.Context, row store.TmuxLauncherWrite) (store.TmuxLauncher, error)
+	UpdateTmuxLauncher(ctx context.Context, id string, row store.TmuxLauncherWrite) (store.TmuxLauncher, error)
+	DeleteTmuxLauncher(ctx context.Context, id string) error
+	ReorderTmuxLaunchers(ctx context.Context, ids []string) error
+	MarkTmuxLauncherUsed(ctx context.Context, id string) error
+}
+
 type markerPatternsRepo interface {
 	ListMarkerPatterns(ctx context.Context) ([]store.MarkerPattern, error)
 	UpsertMarkerPattern(ctx context.Context, row store.MarkerPatternWrite) error
@@ -174,6 +189,8 @@ type handlerRepo interface {
 	alertsActivityRepo
 	sessionDirectoryRepo
 	sessionPresetRepo
+	tmuxLauncherReadRepo
+	tmuxLauncherWriteRepo
 	markerPatternsRepo
 }
 

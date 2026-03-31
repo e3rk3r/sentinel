@@ -1135,6 +1135,34 @@ func TestNewWindow(t *testing.T) {
 			t.Errorf("result = %+v, want Index=1 PaneID=%%10", result)
 		}
 	})
+
+	t.Run("with_name_and_explicit_cwd", func(t *testing.T) {
+		setRun(t, func(_ context.Context, args ...string) (string, error) {
+			switch args[0] {
+			case cmdListWindows:
+				return "0\n1\n", nil
+			case cmdNewWindow:
+				joined := strings.Join(args, " ")
+				if !strings.Contains(joined, "-n codex") {
+					t.Errorf("expected -n codex, got: %v", args)
+				}
+				if !strings.Contains(joined, "-c /srv/api") {
+					t.Errorf("expected -c /srv/api, got: %v", args)
+				}
+				return "2\t%22\n", nil
+			default:
+				return "", fmt.Errorf("unexpected command: %s", args[0])
+			}
+		})
+
+		result, err := NewWindowWithOptions(ctx, "dev", "codex", "/srv/api")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result.Index != 2 || result.PaneID != "%22" {
+			t.Errorf("result = %+v, want Index=2 PaneID=%%22", result)
+		}
+	})
 }
 
 // --- NewWindowAt ---

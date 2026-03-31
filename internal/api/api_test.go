@@ -42,9 +42,11 @@ type mockTmux struct {
 	selectWindowFn           func(ctx context.Context, session string, index int) error
 	selectPaneFn             func(ctx context.Context, paneID string) error
 	newWindowFn              func(ctx context.Context, session string) (tmux.NewWindowResult, error)
+	newWindowWithOptionsFn   func(ctx context.Context, session, name, cwd string) (tmux.NewWindowResult, error)
 	killWindowFn             func(ctx context.Context, session string, index int) error
 	killPaneFn               func(ctx context.Context, paneID string) error
 	splitPaneFn              func(ctx context.Context, paneID, direction string) (string, error)
+	sendKeysFn               func(ctx context.Context, paneID, keys string, enter bool) error
 }
 
 func (m *mockTmux) ListSessions(ctx context.Context) ([]tmux.Session, error) {
@@ -138,6 +140,13 @@ func (m *mockTmux) NewWindow(ctx context.Context, session string) (tmux.NewWindo
 	return tmux.NewWindowResult{Index: 0, PaneID: "%0"}, nil
 }
 
+func (m *mockTmux) NewWindowWithOptions(ctx context.Context, session, name, cwd string) (tmux.NewWindowResult, error) {
+	if m.newWindowWithOptionsFn != nil {
+		return m.newWindowWithOptionsFn(ctx, session, name, cwd)
+	}
+	return tmux.NewWindowResult{Index: 0, PaneID: "%0"}, nil
+}
+
 func (m *mockTmux) KillWindow(ctx context.Context, session string, index int) error {
 	if m.killWindowFn != nil {
 		return m.killWindowFn(ctx, session, index)
@@ -157,6 +166,13 @@ func (m *mockTmux) SplitPane(ctx context.Context, paneID, direction string) (str
 		return m.splitPaneFn(ctx, paneID, direction)
 	}
 	return "%0", nil
+}
+
+func (m *mockTmux) SendKeys(ctx context.Context, paneID, keys string, enter bool) error {
+	if m.sendKeysFn != nil {
+		return m.sendKeysFn(ctx, paneID, keys, enter)
+	}
+	return nil
 }
 
 type mockSysTerms struct{}

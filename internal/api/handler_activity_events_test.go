@@ -290,6 +290,7 @@ func TestGuardrailBlockedTimelineEvent(t *testing.T) {
 	h, st := newTestHandler(t, nil, nil)
 	h.guardrails = guardrails.New(st)
 	ctx := context.Background()
+	const sessionName = "dev"
 
 	// Create a blocking rule that matches session.kill.
 	if err := st.UpsertGuardrailRule(ctx, store.GuardrailRuleWrite{
@@ -310,7 +311,7 @@ func TestGuardrailBlockedTimelineEvent(t *testing.T) {
 	r := httptest.NewRequest("POST", "/test", nil)
 	allowed := h.enforceGuardrail(w, r, guardrails.Input{
 		Action:      "session.kill",
-		SessionName: "dev",
+		SessionName: sessionName,
 	})
 	if allowed {
 		t.Fatal("expected guardrail to block the action")
@@ -331,8 +332,8 @@ func TestGuardrailBlockedTimelineEvent(t *testing.T) {
 			if !strings.Contains(e.Message, "session.kill") {
 				t.Errorf("message = %q, expected to contain session.kill", e.Message)
 			}
-			if e.Resource != "dev" {
-				t.Errorf("resource = %q, want dev", e.Resource)
+			if e.Resource != sessionName {
+				t.Errorf("resource = %q, want %s", e.Resource, sessionName)
 			}
 		}
 	}

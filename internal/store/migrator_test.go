@@ -27,12 +27,12 @@ func TestRunMigrationsFreshDB(t *testing.T) {
 	).Scan(&version, &name); err != nil {
 		t.Fatalf("query schema_migrations: %v", err)
 	}
-	if version != 10 || name != "session-sort-order" {
-		t.Fatalf("latest migration = (%d, %q), want (10, %q)", version, name, "session-sort-order")
+	if version != 11 || name != "tmux-launchers" {
+		t.Fatalf("latest migration = (%d, %q), want (11, %q)", version, name, "tmux-launchers")
 	}
 
 	// Spot-check that a few tables exist.
-	for _, table := range []string{"sessions", "session_presets", "wt_sessions", "guardrail_rules", "ops_runbooks", "ops_schedules", "marker_patterns"} {
+	for _, table := range []string{"sessions", "session_presets", "tmux_launchers", "wt_sessions", "guardrail_rules", "ops_runbooks", "ops_schedules", "marker_patterns"} {
 		var n int
 		if err := db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
@@ -64,8 +64,8 @@ func TestRunMigrationsIdempotent(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if count != 9 { //nolint: migrations 000001, 000003, 000004, 000005, 000006, 000007, 000008, 000009, 000010
-		t.Fatalf("schema_migrations rows = %d, want 9", count)
+	if count != 10 { //nolint: migrations 000001, 000003, 000004, 000005, 000006, 000007, 000008, 000009, 000010, 000011
+		t.Fatalf("schema_migrations rows = %d, want 10", count)
 	}
 }
 

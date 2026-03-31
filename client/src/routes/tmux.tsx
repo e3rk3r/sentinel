@@ -9,18 +9,23 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type {
+  LaunchTmuxLauncherResponse,
   LaunchSessionPresetResponse,
   PanesResponse,
   Session,
   SessionPreset,
   SessionPresetsResponse,
+  TmuxLauncher,
+  TmuxLaunchersResponse,
 } from '@/types'
 import type { RuntimeMetrics } from '@/hooks/tmuxTypes'
+import type { LauncherDraft } from '@/components/tmux/LaunchersDialog'
 import AppShell from '@/components/layout/AppShell'
 import SessionSidebar from '@/components/SessionSidebar'
 import TmuxTerminalPanel from '@/components/TmuxTerminalPanel'
 import CreateSessionDialog from '@/components/sidebar/CreateSessionDialog'
 import GuardrailsDialog from '@/components/tmux/GuardrailsDialog'
+import LaunchersDialog from '@/components/tmux/LaunchersDialog'
 import TimelineDialog from '@/components/tmux/TimelineDialog'
 import GuardrailConfirmDialog from '@/components/GuardrailConfirmDialog'
 import RenameDialog from '@/components/tmux/RenameDialog'
@@ -59,7 +64,9 @@ function TmuxPage() {
 
   // ---- Guardrails dialog state ----
   const [guardrailsOpen, setGuardrailsOpen] = useState(false)
+  const [launchersOpen, setLaunchersOpen] = useState(false)
   const [createSessionOpen, setCreateSessionOpen] = useState(false)
+  const [launchers, setLaunchers] = useState<Array<TmuxLauncher>>([])
   const [sessionPresets, setSessionPresets] = useState<Array<SessionPreset>>([])
 
   // ---- Guardrail confirm state (shared across session CRUD + inspector) ----
@@ -167,9 +174,31 @@ function TmuxPage() {
     [api, pushErrorToast],
   )
 
+  const refreshLaunchers = useCallback(
+    async (options?: { quiet?: boolean }) => {
+      try {
+        const data = await api<TmuxLaunchersResponse>('/api/tmux/launchers')
+        setLaunchers(data.launchers)
+      } catch (error) {
+        if (!options?.quiet) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'failed to refresh launchers'
+          pushErrorToast('Launchers', message)
+        }
+      }
+    },
+    [api, pushErrorToast],
+  )
+
   useEffect(() => {
     void refreshSessionPresets({ quiet: true })
   }, [refreshSessionPresets])
+
+  useEffect(() => {
+    void refreshLaunchers({ quiet: true })
+  }, [refreshLaunchers])
 
   // ---- Terminal hook ----
   const handleAttachedMobile = useCallback(() => {
@@ -409,6 +438,157 @@ function TmuxPage() {
     ],
   )
 
+  const saveLauncher = useCallback(
+    async (draft: LauncherDraft) => {
+      const payload = {
+        name: draft.name,
+        icon: draft.icon,
+        command: draft.command,
+        cwdMode: draft.cwdMode,
+        cwdValue: draft.cwdValue,
+        windowName: draft.windowName,
+      }
+      const isUpdate = Boolean(draft.id)
+      const path = isUpdate
+        ? `/api/tmux/launchers/${encodeURIComponent(draft.id ?? '')}`
+        : '/api/tmux/launchers'
+
+      try {
+        const data = await api<{ launcher: TmuxLauncher }>(path, {
+          method: isUpdate ? 'PATCH' : 'POST',
+          body: JSON.stringify(payload),
+        })
+        await refreshLaunchers()
+        pushSuccessToast(
+          'Launchers',
+          isUpdate
+            ? `launcher "${data.launcher.name}" updated`
+            : `launcher "${data.launcher.name}" created`,
+        )
+        return data.launcher.id
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'failed to save launcher'
+        pushErrorToast('Launchers', message)
+        return null
+      }
+    },
+    [api, pushErrorToast, pushSuccessToast, refreshLaunchers],
+  )
+
+  const deleteLauncher = useCallback(
+    async (launcherID: string) => {
+      const existing = launchers.find((launcher) => launcher.id === launcherID)
+      try {
+        await api<void>(
+          `/api/tmux/launchers/${encodeURIComponent(launcherID)}`,
+          {
+            method: 'DELETE',
+          },
+        )
+        await refreshLaunchers()
+        pushSuccessToast(
+          'Launchers',
+          existing ? `launcher "${existing.name}" deleted` : 'launcher deleted',
+        )
+        return true
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'failed to delete launcher'
+        pushErrorToast('Launchers', message)
+        return false
+      }
+    },
+    [api, launchers, pushErrorToast, pushSuccessToast, refreshLaunchers],
+  )
+
+  const reorderLaunchers = useCallback(
+    async (activeID: string, overID: string) => {
+      const current = launchers.map((launcher) => launcher.id)
+      const next = moveSidebarItem(current, activeID, overID)
+      if (next === current) return
+
+      const launchersByID = new Map(
+        launchers.map((launcher) => [launcher.id, launcher]),
+      )
+      setLaunchers(
+        next.flatMap((id, index) => {
+          const launcher = launchersByID.get(id)
+          if (!launcher) {
+            return []
+          }
+          return [
+            {
+              ...launcher,
+              sortOrder: index + 1,
+            },
+          ]
+        }),
+      )
+
+      try {
+        await api<void>('/api/tmux/launchers/order', {
+          method: 'PATCH',
+          body: JSON.stringify({ ids: next }),
+        })
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'failed to reorder launchers'
+        pushErrorToast('Launchers', message)
+        void refreshLaunchers({ quiet: true })
+      }
+    },
+    [api, launchers, pushErrorToast, refreshLaunchers],
+  )
+
+  const launchLauncher = useCallback(
+    async (launcherID: string) => {
+      const activeSession = tabsStateRef.current.activeSession.trim()
+      if (activeSession === '') {
+        pushErrorToast('Launchers', 'attach to a session before launching')
+        return
+      }
+
+      const launcher = launchers.find((item) => item.id === launcherID)
+      if (!launcher) {
+        pushErrorToast('Launchers', 'launcher not found')
+        return
+      }
+
+      try {
+        const data = await api<LaunchTmuxLauncherResponse>(
+          `/api/tmux/sessions/${encodeURIComponent(activeSession)}/launchers/${encodeURIComponent(launcherID)}/launch`,
+          { method: 'POST' },
+        )
+        inspector.setActiveWindowIndexOverride(data.windowIndex)
+        inspector.setActivePaneIDOverride(data.paneId)
+        void inspector.refreshInspector(activeSession, { background: true })
+        void sessionCRUD.refreshSessions()
+        void refreshLaunchers({ quiet: true })
+        pushSuccessToast(
+          'Launchers',
+          `launcher "${launcher.name}" opened as "${data.windowName}"`,
+        )
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'failed to launch window'
+        pushErrorToast('Launchers', message)
+        void inspector.refreshInspector(activeSession, { background: true })
+        void sessionCRUD.refreshSessions()
+      }
+    },
+    [
+      api,
+      inspector,
+      launchers,
+      pushErrorToast,
+      pushSuccessToast,
+      refreshLaunchers,
+      sessionCRUD,
+      tabsStateRef,
+    ],
+  )
+
   // ---- Timeline hook ----
   const timeline = useTmuxTimeline({
     api,
@@ -529,6 +709,19 @@ function TmuxPage() {
   const orderedSessionPresets = useMemo(() => {
     return sortBySidebarOrder(sessionPresets)
   }, [sessionPresets])
+
+  const recentLauncher = useMemo(() => {
+    const usedLaunchers = launchers.filter((launcher) =>
+      Number.isFinite(Date.parse(launcher.lastUsedAt)),
+    )
+    if (usedLaunchers.length === 0) return null
+    return [...usedLaunchers].sort((left, right) => {
+      const leftTime = left.lastUsedAt ? Date.parse(left.lastUsedAt) : 0
+      const rightTime = right.lastUsedAt ? Date.parse(right.lastUsedAt) : 0
+      if (leftTime !== rightTime) return rightTime - leftTime
+      return (left.sortOrder ?? 0) - (right.sortOrder ?? 0)
+    })[0]
+  }, [launchers])
 
   const filteredSessions = useMemo(() => {
     const query = debouncedFilter.trim().toLowerCase()
@@ -657,6 +850,12 @@ function TmuxPage() {
         onRenameWindow={inspector.handleOpenRenameWindow}
         onRenamePane={inspector.handleOpenRenamePane}
         onCreateWindow={inspector.createWindow}
+        launchers={launchers}
+        recentLauncher={recentLauncher}
+        onLaunchLauncher={(launcherID) => {
+          void launchLauncher(launcherID)
+        }}
+        onOpenLaunchers={() => setLaunchersOpen(true)}
         onCloseWindow={inspector.closeWindow}
         onSplitPaneVertical={() => inspector.splitPane('vertical')}
         onSplitPaneHorizontal={() => inspector.splitPane('horizontal')}
@@ -685,6 +884,17 @@ function TmuxPage() {
       <GuardrailsDialog
         open={guardrailsOpen}
         onOpenChange={setGuardrailsOpen}
+      />
+
+      <LaunchersDialog
+        open={launchersOpen}
+        onOpenChange={setLaunchersOpen}
+        launchers={launchers}
+        onSave={saveLauncher}
+        onDelete={deleteLauncher}
+        onReorder={(activeID, overID) => {
+          void reorderLaunchers(activeID, overID)
+        }}
       />
 
       <CreateSessionDialog

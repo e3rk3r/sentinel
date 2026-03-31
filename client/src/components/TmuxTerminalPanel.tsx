@@ -1,4 +1,4 @@
-import { History, Menu, Minus, Plus, ShieldAlert } from 'lucide-react'
+import { History, Menu, Minus, Plus, Rocket, ShieldAlert } from 'lucide-react'
 import { useCallback, useEffect, useRef } from 'react'
 import ConnectionBadge from './ConnectionBadge'
 import SessionTabs from './SessionTabs'
@@ -8,7 +8,12 @@ import PaneStrip from './tmux/PaneStrip'
 import TerminalHost from './tmux/TerminalHost'
 import WindowStrip from './tmux/WindowStrip'
 import type { RefCallback } from 'react'
-import type { ConnectionState, PaneInfo, WindowInfo } from '../types'
+import type {
+  ConnectionState,
+  PaneInfo,
+  TmuxLauncher,
+  WindowInfo,
+} from '../types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -33,6 +38,10 @@ type TmuxTerminalPanelProps = {
   onRenameWindow: (windowInfo: WindowInfo) => void
   onRenamePane: (paneInfo: PaneInfo) => void
   onCreateWindow: () => void
+  launchers: Array<TmuxLauncher>
+  recentLauncher: TmuxLauncher | null
+  onLaunchLauncher: (launcherID: string) => void
+  onOpenLaunchers?: () => void
   onCloseWindow: (windowIndex: number) => void
   onSplitPaneVertical: () => void
   onSplitPaneHorizontal: () => void
@@ -73,6 +82,10 @@ export default function TmuxTerminalPanel({
   onRenameWindow,
   onRenamePane,
   onCreateWindow,
+  launchers,
+  recentLauncher,
+  onLaunchLauncher,
+  onOpenLaunchers,
   onCloseWindow,
   onSplitPaneVertical,
   onSplitPaneHorizontal,
@@ -208,6 +221,19 @@ export default function TmuxTerminalPanel({
               <ShieldAlert className="h-3.5 w-3.5" />
             </Button>
           </TooltipHelper>
+          <TooltipHelper content="Launchers">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 cursor-pointer"
+              onClick={onOpenLaunchers}
+              disabled={!onOpenLaunchers}
+              aria-label="Launchers"
+            >
+              <Rocket className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipHelper>
           <TooltipHelper content="Timeline">
             <Button
               type="button"
@@ -252,6 +278,8 @@ export default function TmuxTerminalPanel({
                 inspectorError={inspectorError}
                 windows={windows}
                 activeWindowIndex={activeWindowIndex}
+                launchers={launchers}
+                recentLauncher={recentLauncher}
                 onSelectWindow={(idx) => {
                   onSelectWindow(idx)
                   onFocusTerminal?.()
@@ -259,6 +287,8 @@ export default function TmuxTerminalPanel({
                 onCloseWindow={onCloseWindow}
                 onRenameWindow={onRenameWindow}
                 onCreateWindow={onCreateWindow}
+                onLaunchLauncher={onLaunchLauncher}
+                onOpenLaunchers={() => onOpenLaunchers?.()}
               />
             </div>
 

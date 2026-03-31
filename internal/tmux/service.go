@@ -57,6 +57,10 @@ func (Service) NewWindow(ctx context.Context, session string) (NewWindowResult, 
 	return NewWindow(ctx, session)
 }
 
+func (Service) NewWindowWithOptions(ctx context.Context, session, name, cwd string) (NewWindowResult, error) {
+	return NewWindowWithOptions(ctx, session, name, cwd)
+}
+
 func (Service) NewWindowAt(ctx context.Context, session string, index int, name, cwd string) error {
 	return NewWindowAt(ctx, session, index, name, cwd)
 }

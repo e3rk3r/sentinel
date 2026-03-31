@@ -35,6 +35,33 @@ export type LaunchSessionPresetResponse = {
   created: boolean
 }
 
+export type LauncherCwdMode = 'session' | 'active-pane' | 'fixed'
+
+export type TmuxLauncher = {
+  id: string
+  name: string
+  icon: string
+  command: string
+  cwdMode: LauncherCwdMode
+  cwdValue: string
+  windowName: string
+  sortOrder?: number
+  createdAt: string
+  updatedAt: string
+  lastUsedAt: string
+}
+
+export type TmuxLaunchersResponse = {
+  launchers: Array<TmuxLauncher>
+}
+
+export type LaunchTmuxLauncherResponse = {
+  launcherId: string
+  windowIndex: number
+  paneId: string
+  windowName: string
+}
+
 export type ConnectionState =
   | 'connected'
   | 'connecting'

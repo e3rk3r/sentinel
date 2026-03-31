@@ -431,6 +431,10 @@ func SelectPane(ctx context.Context, paneID string) error {
 }
 
 func NewWindow(ctx context.Context, session string) (NewWindowResult, error) {
+	return NewWindowWithOptions(ctx, session, "", "")
+}
+
+func NewWindowWithOptions(ctx context.Context, session, name, cwd string) (NewWindowResult, error) {
 	target := fmt.Sprintf("%s:", session)
 	if indexesOut, listErr := run(ctx, "list-windows", "-t", session, "-F", "#{window_index}"); listErr == nil {
 		if nextIndex, ok := nextWindowIndexFromListOutput(indexesOut); ok {
@@ -438,10 +442,17 @@ func NewWindow(ctx context.Context, session string) (NewWindowResult, error) {
 		}
 	}
 	args := []string{"new-window", "-P", "-F", "#{window_index}\t#{pane_id}", "-t", target}
-	if pathOut, pathErr := run(ctx, "display-message", "-t", session, "-p", "#{session_path}"); pathErr == nil {
-		if sp := strings.TrimSpace(pathOut); sp != "" {
-			args = append(args, "-c", sp)
+	if strings.TrimSpace(name) != "" {
+		args = append(args, "-n", strings.TrimSpace(name))
+	}
+	resolvedCWD := strings.TrimSpace(cwd)
+	if resolvedCWD == "" {
+		if pathOut, pathErr := run(ctx, "display-message", "-t", session, "-p", "#{session_path}"); pathErr == nil {
+			resolvedCWD = strings.TrimSpace(pathOut)
 		}
+	}
+	if resolvedCWD != "" {
+		args = append(args, "-c", resolvedCWD)
 	}
 	out, err := run(ctx, args...)
 	if err != nil {
