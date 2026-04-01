@@ -246,6 +246,7 @@ describe('WindowStrip', () => {
     })
 
     expect(screen.getByText('Claude Code').className).toContain('leading-none')
+    expect(screen.getByText('Claude Code').className).toContain('pt-[3px]')
   })
 
   it('clips vertical overflow while keeping horizontal drag scrolling available', () => {

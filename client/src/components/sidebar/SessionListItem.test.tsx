@@ -63,6 +63,58 @@ const baseSession = {
 }
 
 describe('SessionListItem', () => {
+  it('uses the same tone for icon and title on attached sessions', () => {
+    render(
+      <SortableTestShell>
+        <SessionListItem
+          session={{ ...baseSession, attached: 1 }}
+          isActive
+          isPinned={false}
+          onAttach={() => {}}
+          onRename={() => {}}
+          onDetach={() => {}}
+          onKill={() => {}}
+          onChangeIcon={() => {}}
+          onPinSession={() => {}}
+          onUnpinSession={() => {}}
+          canDetach={false}
+        />
+      </SortableTestShell>,
+    )
+
+    const title = screen.getByText('api')
+    const icon = title.previousSibling as SVGElement | null
+
+    expect(title.className).not.toContain('text-muted-foreground')
+    expect(icon?.className.baseVal ?? '').not.toContain('text-primary-text')
+  })
+
+  it('dims the title to match the icon when the session is detached', () => {
+    render(
+      <SortableTestShell>
+        <SessionListItem
+          session={baseSession}
+          isActive={false}
+          isPinned={false}
+          onAttach={() => {}}
+          onRename={() => {}}
+          onDetach={() => {}}
+          onKill={() => {}}
+          onChangeIcon={() => {}}
+          onPinSession={() => {}}
+          onUnpinSession={() => {}}
+          canDetach={false}
+        />
+      </SortableTestShell>,
+    )
+
+    const title = screen.getByText('api')
+    const icon = title.previousSibling as SVGElement | null
+
+    expect(title.className).toContain('text-muted-foreground')
+    expect(icon?.className.baseVal ?? '').toContain('text-muted-foreground')
+  })
+
   it('pins a session from the context menu', async () => {
     const onPinSession = vi.fn()
 

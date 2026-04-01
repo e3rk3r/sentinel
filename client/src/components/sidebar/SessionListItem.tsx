@@ -113,11 +113,16 @@ export default function SessionListItem({
               <SessionIcon
                 className={cn(
                   'h-3.5 w-3.5 shrink-0',
-                  isAttached ? 'text-primary-text' : 'text-muted-foreground',
+                  !isAttached && 'text-muted-foreground',
                 )}
               />
               <TooltipHelper content={`Created: ${createdAbsolute}`}>
-                <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                    !isAttached && 'text-muted-foreground',
+                  )}
+                >
                   {session.name}
                 </span>
               </TooltipHelper>
