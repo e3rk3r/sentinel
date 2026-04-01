@@ -295,14 +295,6 @@ func (h *Handler) enforceGuardrail(
 		return false
 	case store.GuardrailModeConfirm:
 		if !confirmed {
-			if h.events != nil {
-				h.events.Publish(events.NewEvent(events.TypeTmuxGuardrail, map[string]any{
-					"action":   strings.TrimSpace(input.Action),
-					"session":  strings.TrimSpace(input.SessionName),
-					"paneId":   strings.TrimSpace(input.PaneID),
-					"decision": decision,
-				}))
-			}
 			if err := h.guardrails.RecordAudit(ctx, input, decision, false, "confirm-required"); err != nil {
 				slog.Warn("guardrail audit write failed", "err", err)
 			}

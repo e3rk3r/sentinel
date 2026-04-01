@@ -3828,6 +3828,10 @@ func TestDeleteSessionGuardrailConfirmRequired(t *testing.T) {
 		},
 	}, nil)
 	h.guardrails = guardrails.New(st)
+	hub := events.NewHub()
+	eventsCh, unsubscribe := hub.Subscribe(8)
+	defer unsubscribe()
+	h.events = hub
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("DELETE", "/api/tmux/sessions/dev", nil)
@@ -3841,6 +3845,11 @@ func TestDeleteSessionGuardrailConfirmRequired(t *testing.T) {
 	}
 	if killCalls != 0 {
 		t.Fatalf("killCalls = %d, want 0", killCalls)
+	}
+	select {
+	case event := <-eventsCh:
+		t.Fatalf("unexpected guardrail event for confirm-required flow: %+v", event)
+	case <-time.After(25 * time.Millisecond):
 	}
 
 	w = httptest.NewRecorder()
