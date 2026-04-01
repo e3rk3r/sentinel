@@ -21,6 +21,7 @@ import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 type TmuxTerminalPanelProps = {
   connectionState: ConnectionState
   statusDetail: string
+  sidebarCollapsed: boolean
   openTabs: Array<string>
   activeSession: string
   inspectorLoading: boolean
@@ -66,6 +67,7 @@ type TmuxTerminalPanelProps = {
 export default function TmuxTerminalPanel({
   connectionState,
   statusDetail: _statusDetail,
+  sidebarCollapsed,
   openTabs,
   activeSession,
   inspectorLoading,
@@ -110,6 +112,7 @@ export default function TmuxTerminalPanel({
   const isMobileLayout = useIsMobileLayout()
   const lockedTouchIDsRef = useRef<Set<number>>(new Set())
   const hasActiveSession = activeSession !== ''
+  const showSessionTabs = isMobileLayout || sidebarCollapsed
   const showControls =
     isMobileLayout && hasActiveSession && !!onSendKey && !!onFocusTerminal
 
@@ -189,9 +192,13 @@ export default function TmuxTerminalPanel({
     <main
       className={cn(
         'grid min-h-0 min-w-0 grid-cols-1 overflow-hidden bg-[radial-gradient(circle_at_20%_-10%,rgba(30,64,175,.18),transparent_34%),var(--background)]',
-        showControls
-          ? 'grid-rows-[40px_30px_1fr_auto_28px]'
-          : 'grid-rows-[40px_30px_1fr_28px]',
+        showSessionTabs
+          ? showControls
+            ? 'grid-rows-[40px_30px_1fr_auto_28px]'
+            : 'grid-rows-[40px_30px_1fr_28px]'
+          : showControls
+            ? 'grid-rows-[40px_1fr_auto_28px]'
+            : 'grid-rows-[40px_1fr_28px]',
       )}
     >
       <header className="flex min-w-0 items-center justify-between gap-2 border-b border-border bg-card px-2.5">
@@ -253,15 +260,17 @@ export default function TmuxTerminalPanel({
         </div>
       </header>
 
-      <SessionTabs
-        openTabs={openTabs}
-        activeSession={activeSession}
-        onSelect={onSelectTab}
-        onClose={onCloseTab}
-        onRename={onRenameTab}
-        onKill={onKillTab}
-        onReorder={onReorderTabs}
-      />
+      {showSessionTabs && (
+        <SessionTabs
+          openTabs={openTabs}
+          activeSession={activeSession}
+          onSelect={onSelectTab}
+          onClose={onCloseTab}
+          onRename={onRenameTab}
+          onKill={onKillTab}
+          onReorder={onReorderTabs}
+        />
+      )}
 
       <section
         className={cn(
@@ -273,7 +282,7 @@ export default function TmuxTerminalPanel({
       >
         {hasActiveSession ? (
           <>
-            <div className="min-w-0 overflow-hidden border-b border-border-subtle bg-surface-overlay px-2.5 py-1">
+            <div className="flex min-w-0 items-center overflow-hidden border-b border-border-subtle bg-surface-overlay px-2.5">
               <WindowStrip
                 hasActiveSession={hasActiveSession}
                 inspectorLoading={inspectorLoading}

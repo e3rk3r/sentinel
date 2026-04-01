@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import WindowStrip from './WindowStrip'
+import WindowStrip, { clampWindowStripTransform } from './WindowStrip'
 import type { TmuxLauncher, WindowInfo } from '@/types'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -58,6 +58,12 @@ describe('WindowStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create blank window' }))
 
     expect(onCreateWindow).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByRole('button', { name: 'Create blank window' }).className,
+    ).toContain('size-5')
+    expect(
+      screen.getByRole('button', { name: 'Open launcher menu' }).className,
+    ).toContain('size-5')
   })
 
   it('launches configured launchers from the dropdown menu', async () => {
@@ -210,5 +216,195 @@ describe('WindowStrip', () => {
     expect(screen.getByText('Runner')).not.toBeNull()
     expect(screen.queryByText('Failed to fetch')).toBeNull()
     expect(screen.queryByText('Loading windows')).toBeNull()
+  })
+
+  it('keeps launcher icons and labels on the same visual baseline', () => {
+    renderStrip({
+      hasActiveSession: true,
+      inspectorLoading: false,
+      inspectorError: '',
+      windows: [
+        {
+          session: 'dev',
+          index: 0,
+          name: 'claude',
+          displayName: 'Claude Code',
+          displayIcon: 'bot',
+          active: true,
+          panes: 1,
+        },
+      ],
+      activeWindowIndex: 0,
+      launchers: [],
+      recentLauncher: null,
+      onSelectWindow: vi.fn(),
+      onCloseWindow: vi.fn(),
+      onRenameWindow: vi.fn(),
+      onCreateWindow: vi.fn(),
+      onLaunchLauncher: vi.fn(),
+      onOpenLaunchers: vi.fn(),
+    })
+
+    expect(screen.getByText('Claude Code').className).toContain('leading-none')
+  })
+
+  it('clips vertical overflow while keeping horizontal drag scrolling available', () => {
+    renderStrip({
+      hasActiveSession: true,
+      inspectorLoading: false,
+      inspectorError: '',
+      windows: [
+        {
+          session: 'dev',
+          index: 0,
+          name: 'one',
+          displayName: 'One',
+          active: true,
+          panes: 1,
+          tmuxWindowId: '@1',
+        },
+        {
+          session: 'dev',
+          index: 1,
+          name: 'two',
+          displayName: 'Two',
+          active: false,
+          panes: 1,
+          tmuxWindowId: '@2',
+        },
+      ],
+      activeWindowIndex: 0,
+      launchers: [],
+      recentLauncher: null,
+      onSelectWindow: vi.fn(),
+      onCloseWindow: vi.fn(),
+      onRenameWindow: vi.fn(),
+      onCreateWindow: vi.fn(),
+      onLaunchLauncher: vi.fn(),
+      onOpenLaunchers: vi.fn(),
+      onReorderWindow: vi.fn(),
+    })
+
+    const stripRoot = screen
+      .getByRole('button', { name: 'Create blank window' })
+      .closest('div[class*="overflow-x-auto"]')
+
+    expect(stripRoot?.className).toContain('overflow-y-hidden')
+    expect(stripRoot?.className).toContain('no-scrollbar')
+    expect(stripRoot?.getAttribute('data-sentinel-window-strip-scroll')).toBe(
+      'true',
+    )
+    expect(stripRoot?.getAttribute('style')).toContain(
+      'overscroll-behavior-x: contain',
+    )
+    expect(stripRoot?.getAttribute('style')).toContain(
+      'overscroll-behavior-y: none',
+    )
+  })
+
+  it('maps wheel movement to horizontal strip scrolling', () => {
+    renderStrip({
+      hasActiveSession: true,
+      inspectorLoading: false,
+      inspectorError: '',
+      windows: Array.from({ length: 10 }, (_, index) => ({
+        session: 'dev',
+        index,
+        name: `win-${index}`,
+        displayName: `Window ${index}`,
+        active: index === 0,
+        panes: 1,
+        tmuxWindowId: `@${index + 1}`,
+      })),
+      activeWindowIndex: 0,
+      launchers: [],
+      recentLauncher: null,
+      onSelectWindow: vi.fn(),
+      onCloseWindow: vi.fn(),
+      onRenameWindow: vi.fn(),
+      onCreateWindow: vi.fn(),
+      onLaunchLauncher: vi.fn(),
+      onOpenLaunchers: vi.fn(),
+      onReorderWindow: vi.fn(),
+    })
+
+    const stripRoot = screen
+      .getByRole('button', { name: 'Create blank window' })
+      .closest('[data-sentinel-window-strip-scroll="true"]') as HTMLDivElement
+
+    Object.defineProperty(stripRoot, 'clientWidth', {
+      configurable: true,
+      value: 200,
+    })
+    Object.defineProperty(stripRoot, 'scrollWidth', {
+      configurable: true,
+      value: 600,
+    })
+
+    stripRoot.scrollLeft = 10
+    fireEvent.wheel(stripRoot, { deltaY: 48 })
+
+    expect(stripRoot.scrollLeft).toBe(58)
+  })
+
+  it('keeps dragged windows inside the visible strip bounds', () => {
+    const strip = document.createElement('div')
+    strip.dataset.sentinelWindowStripScroll = 'true'
+    strip.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 140,
+        right: 340,
+        bottom: 40,
+        width: 200,
+        height: 40,
+        x: 140,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    const clamped = clampWindowStripTransform(
+      {
+        x: -80,
+        y: 18,
+        scaleX: 1,
+        scaleY: 1,
+      },
+      {
+        top: 8,
+        left: 120,
+        right: 200,
+        bottom: 28,
+        width: 80,
+        height: 20,
+      },
+      [strip],
+    )
+
+    expect(clamped.x).toBe(20)
+    expect(clamped.y).toBe(0)
+  })
+
+  it('falls back safely when the strip rect is unavailable', () => {
+    const clamped = clampWindowStripTransform(
+      {
+        x: 32,
+        y: 18,
+        scaleX: 1,
+        scaleY: 1,
+      },
+      {
+        top: 8,
+        left: 120,
+        right: 200,
+        bottom: 28,
+        width: 80,
+        height: 20,
+      },
+      [],
+    )
+
+    expect(clamped.x).toBe(32)
+    expect(clamped.y).toBe(0)
   })
 })

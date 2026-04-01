@@ -25,7 +25,7 @@ import { useServerStatus } from '@/hooks/useServerStatus'
 import { useShellLayout } from '@/hooks/useShellLayout'
 import { useToasts } from '@/hooks/useToasts'
 import { useVisualViewport } from '@/hooks/useVisualViewport'
-import { formatPageTitle } from '@/routes/pageTitle'
+import { formatPageTitle } from '@/lib/pageTitle'
 
 type AuthCookieUpdateResult = {
   ok: boolean

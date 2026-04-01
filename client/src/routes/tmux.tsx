@@ -878,6 +878,7 @@ function TmuxPage() {
       <TmuxTerminalPanel
         connectionState={connectionState}
         statusDetail={statusDetail}
+        sidebarCollapsed={layout.sidebarCollapsed}
         openTabs={tabsState.openTabs}
         activeSession={tabsState.activeSession}
         inspectorLoading={inspector.inspectorLoading}

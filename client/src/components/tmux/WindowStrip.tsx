@@ -12,8 +12,9 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { DragEndEvent } from '@dnd-kit/core'
-import type { CSSProperties } from 'react'
+import type { DragEndEvent, Modifier, ClientRect } from '@dnd-kit/core'
+import type { CSSProperties, WheelEvent as ReactWheelEvent } from 'react'
+import type { Transform } from '@dnd-kit/utilities'
 import { ChevronDown, Plus, X } from 'lucide-react'
 import type { TmuxLauncher, WindowInfo } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,55 @@ function describeLauncherCommand(command: unknown) {
   }
   return 'plain shell'
 }
+
+function canAutoScrollWindowStrip(element: Element): boolean {
+  return (
+    element instanceof HTMLElement &&
+    element.dataset.sentinelWindowStripScroll === 'true'
+  )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (max < min) {
+    return min
+  }
+  return Math.min(Math.max(value, min), max)
+}
+
+export function clampWindowStripTransform(
+  transform: Transform,
+  draggingNodeRect: ClientRect | null,
+  scrollableAncestors: Array<Element>,
+): Transform {
+  const stripElement = scrollableAncestors.find(canAutoScrollWindowStrip)
+  const stripRect =
+    stripElement instanceof HTMLElement
+      ? stripElement.getBoundingClientRect()
+      : null
+
+  if (draggingNodeRect === null || stripRect === null) {
+    return {
+      ...transform,
+      y: 0,
+    }
+  }
+
+  const minX = stripRect.left - draggingNodeRect.left
+  const maxX = stripRect.right - draggingNodeRect.right
+
+  return {
+    ...transform,
+    x: clamp(transform.x, minX, maxX),
+    y: 0,
+  }
+}
+
+const restrictToWindowStripBounds: Modifier = ({
+  draggingNodeRect,
+  scrollableAncestors,
+  transform,
+}) =>
+  clampWindowStripTransform(transform, draggingNodeRect, scrollableAncestors)
 
 type WindowStripProps = {
   hasActiveSession: boolean
@@ -116,7 +166,7 @@ function WindowChip({
       ref={containerRef}
       style={containerStyle}
       className={cn(
-        'inline-flex max-w-[16rem] shrink-0 items-center overflow-hidden rounded border text-[11px]',
+        'inline-flex max-w-[16rem] shrink-0 items-center overflow-hidden rounded border text-[11px]/none',
         isActive
           ? 'border-primary/50 text-primary-text'
           : hasUnread
@@ -127,7 +177,7 @@ function WindowChip({
     >
       <button
         className={cn(
-          'inline-flex min-w-0 items-center gap-1 px-1.5 py-0.5 whitespace-nowrap hover:text-foreground',
+          'inline-flex h-5 min-w-0 items-center gap-1 px-1.5 whitespace-nowrap leading-none hover:text-foreground',
           'cursor-pointer',
         )}
         type="button"
@@ -140,8 +190,10 @@ function WindowChip({
           windowInfo.index
         ) : (
           <>
-            {WindowIcon !== null && <WindowIcon className="h-3.5 w-3.5" />}
-            <span className="min-w-0 truncate">{displayName}</span>
+            {WindowIcon !== null && (
+              <WindowIcon className="size-3.5 shrink-0" />
+            )}
+            <span className="min-w-0 truncate leading-none">{displayName}</span>
           </>
         )}
       </button>
@@ -260,7 +312,8 @@ export default function WindowStrip({
         : [],
     [reorderEnabled, sortedWindows],
   )
-  const stripClass = 'flex min-h-[24px] items-center gap-1.5 overflow-x-auto'
+  const stripClass =
+    'no-scrollbar flex min-h-[24px] items-center gap-1.5 overflow-x-auto overflow-y-hidden'
   const hasRenderableWindows = sortedWindows.length > 0
 
   const handleDragEnd = useCallback(
@@ -274,6 +327,25 @@ export default function WindowStrip({
     },
     [onReorderWindow],
   )
+
+  const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    const strip = event.currentTarget
+    if (strip.scrollWidth <= strip.clientWidth || event.ctrlKey) {
+      return
+    }
+
+    const horizontalDelta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY
+
+    if (horizontalDelta === 0) {
+      return
+    }
+
+    event.preventDefault()
+    strip.scrollLeft += horizontalDelta
+  }, [])
 
   if (!hasActiveSession) {
     return (
@@ -311,6 +383,12 @@ export default function WindowStrip({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        modifiers={[restrictToWindowStripBounds]}
+        autoScroll={{
+          enabled: true,
+          canScroll: canAutoScrollWindowStrip,
+          layoutShiftCompensation: { x: true, y: false },
+        }}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
@@ -348,17 +426,25 @@ export default function WindowStrip({
     )
 
   return (
-    <div className={stripClass}>
-      <div className="flex shrink-0 items-center">
+    <div
+      className={stripClass}
+      data-sentinel-window-strip-scroll="true"
+      onWheel={handleWheel}
+      style={{
+        overscrollBehaviorX: 'contain',
+        overscrollBehaviorY: 'none',
+      }}
+    >
+      <div className="flex shrink-0 items-center text-[11px]/none">
         <TooltipHelper content="Create blank window">
           <Button
             variant="outline"
-            size="icon-sm"
+            size="icon-xs"
             className="rounded-r-none border-r-0"
             onClick={onCreateWindow}
             aria-label="Create blank window"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="size-3" />
           </Button>
         </TooltipHelper>
 
@@ -366,11 +452,11 @@ export default function WindowStrip({
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              size="icon-sm"
-              className="rounded-l-none px-1.5"
+              size="icon-xs"
+              className="rounded-l-none px-0"
               aria-label="Open launcher menu"
             >
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="size-3" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
