@@ -16,6 +16,8 @@
 !.oxfmtrc.json
 !components.json
 !.cta.json
+!scripts/
+!scripts/**
 
 # Frontend sources.
 !src/
