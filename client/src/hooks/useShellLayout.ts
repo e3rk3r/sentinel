@@ -7,6 +7,7 @@ type UseShellLayoutOptions = {
   defaultSidebarWidth: number
   minSidebarWidth: number
   maxSidebarWidth: number
+  compactSidebarWidth: number
   onResizeEnd?: () => void
 }
 
@@ -15,6 +16,7 @@ export function useShellLayout({
   defaultSidebarWidth,
   minSidebarWidth,
   maxSidebarWidth,
+  compactSidebarWidth,
   onResizeEnd,
 }: UseShellLayoutOptions) {
   const isMobile = useIsMobileLayout()
@@ -47,6 +49,9 @@ export function useShellLayout({
       }) as CSSProperties,
     [sidebarCollapsed, sidebarWidth],
   )
+
+  const sidebarCompact =
+    !sidebarCollapsed && sidebarWidth <= compactSidebarWidth
 
   const layoutGridClass = useMemo(
     () =>
@@ -101,6 +106,7 @@ export function useShellLayout({
     setSidebarOpen,
     sidebarCollapsed,
     setSidebarCollapsed,
+    sidebarCompact,
     settingsOpen,
     setSettingsOpen,
     shellStyle,

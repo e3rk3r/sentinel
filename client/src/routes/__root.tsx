@@ -159,6 +159,7 @@ function RootComponent() {
     defaultSidebarWidth: 340,
     minSidebarWidth: 240,
     maxSidebarWidth: 440,
+    compactSidebarWidth: 280,
     onResizeEnd: () => {
       window.dispatchEvent(new Event('resize'))
     },

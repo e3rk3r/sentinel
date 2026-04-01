@@ -4,6 +4,7 @@ import PinnedSessionsPanel from './sidebar/PinnedSessionsPanel'
 import SessionControls from './sidebar/SessionControls'
 import SessionListPanel from './sidebar/SessionListPanel'
 import type { Session, SessionPreset } from '../types'
+import { useLayoutContext } from '@/contexts/LayoutContext'
 
 type SessionSidebarProps = {
   sessions: Array<Session>
@@ -60,6 +61,7 @@ export default function SessionSidebar({
   onKill,
   onChangeIcon,
 }: SessionSidebarProps) {
+  const { sidebarCompact } = useLayoutContext()
   const pinnedNames = useMemo(
     () => new Set(presets.map((preset) => preset.name)),
     [presets],
@@ -107,6 +109,7 @@ export default function SessionSidebar({
             onUnpinSession={onUnpinSession}
             onLaunchPreset={onLaunchPreset}
             onReorder={onReorderPinned}
+            compactCards={sidebarCompact}
             fillHeight={shouldHideRegularPanel}
           />
         </div>
@@ -129,6 +132,7 @@ export default function SessionSidebar({
               onPinSession={onPinSession}
               onUnpinSession={onUnpinSession}
               onReorder={onReorderSession}
+              compactCards={sidebarCompact}
             />
           </div>
         )}

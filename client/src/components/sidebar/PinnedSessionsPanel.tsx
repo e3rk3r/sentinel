@@ -26,6 +26,7 @@ type PinnedSessionsPanelProps = {
   openTabs: Array<string>
   activeSession: string
   tmuxUnavailable: boolean
+  compactCards?: boolean
   onAttach: (session: string) => void
   onRename: (session: string) => void
   onDetach: (session: string) => void
@@ -101,6 +102,7 @@ export default function PinnedSessionsPanel({
   openTabs,
   activeSession,
   tmuxUnavailable,
+  compactCards = false,
   onAttach,
   onRename,
   onDetach,
@@ -188,6 +190,7 @@ export default function PinnedSessionsPanel({
                     onPinSession={onPinSession}
                     onUnpinSession={onUnpinSession}
                     canDetach={openTabsSet.has(session.name)}
+                    compact={compactCards}
                   />
                 )
               }

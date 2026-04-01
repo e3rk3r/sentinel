@@ -128,4 +128,28 @@ describe('SessionListItem', () => {
 
     expect(onUnpinSession).toHaveBeenCalledWith('api')
   })
+
+  it('hides the content preview when rendered in compact mode', () => {
+    render(
+      <SortableTestShell>
+        <SessionListItem
+          session={baseSession}
+          isActive={false}
+          isPinned={false}
+          compact
+          onAttach={() => {}}
+          onRename={() => {}}
+          onDetach={() => {}}
+          onKill={() => {}}
+          onChangeIcon={() => {}}
+          onPinSession={() => {}}
+          onUnpinSession={() => {}}
+          canDetach={false}
+        />
+      </SortableTestShell>,
+    )
+
+    expect(screen.queryByText('ready')).toBeNull()
+    expect(screen.getByText('abc…456')).toBeTruthy()
+  })
 })

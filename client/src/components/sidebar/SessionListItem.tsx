@@ -26,6 +26,7 @@ type SessionListItemProps = {
   session: Session
   isActive: boolean
   isPinned: boolean
+  compact?: boolean
   onAttach: (session: string) => void
   onRename: (session: string) => void
   onDetach: (session: string) => void
@@ -40,6 +41,7 @@ export default function SessionListItem({
   session,
   isActive,
   isPinned,
+  compact = false,
   onAttach,
   onRename,
   onDetach,
@@ -95,7 +97,8 @@ export default function SessionListItem({
         <ContextMenuTrigger asChild>
           <button
             className={cn(
-              'group w-full max-w-full cursor-pointer overflow-hidden rounded-lg border bg-surface-elevated px-2.5 py-2 text-left outline-none transition-colors',
+              'group w-full max-w-full cursor-pointer overflow-hidden rounded-lg border bg-surface-elevated px-2.5 text-left outline-none transition-colors',
+              compact ? 'py-1.5' : 'py-2',
               isActive
                 ? 'border-primary/60 bg-surface-active-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,.25)]'
                 : 'border-border-subtle hover:border-border hover:bg-secondary focus-within:border-border',
@@ -165,19 +168,26 @@ export default function SessionListItem({
             </div>
 
             {/* Line 2: Content preview (2 lines max, reserved height) */}
-            <div
-              className={cn(
-                'my-1 line-clamp-2 min-h-[2lh] max-w-full overflow-hidden break-all [overflow-wrap:anywhere] text-[10px] leading-[1.4] italic',
-                isAttached && hasUnreadActivity
-                  ? 'text-secondary-foreground'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {session.lastContent || '\u00A0'}
-            </div>
+            {!compact && (
+              <div
+                className={cn(
+                  'my-1 line-clamp-2 min-h-[2lh] max-w-full overflow-hidden break-all [overflow-wrap:anywhere] text-[10px] leading-[1.4] italic',
+                  isAttached && hasUnreadActivity
+                    ? 'text-secondary-foreground'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {session.lastContent || '\u00A0'}
+              </div>
+            )}
 
             {/* Line 3: hash — windows/panes — time */}
-            <div className="mt-1 flex items-center justify-between">
+            <div
+              className={cn(
+                'flex items-center justify-between',
+                !compact && 'mt-1',
+              )}
+            >
               {session.hash && (
                 <TooltipHelper content={`Hash: ${session.hash}`}>
                   <span className="shrink-0 font-mono text-[10px] text-muted-foreground">

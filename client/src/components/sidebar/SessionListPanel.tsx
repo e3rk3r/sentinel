@@ -22,6 +22,7 @@ type SessionListPanelProps = {
   activeSession: string
   filter: string
   presets: Array<SessionPreset>
+  compactCards?: boolean
   onFilterChange: (value: string) => void
   onAttach: (session: string) => void
   onRename: (session: string) => void
@@ -40,6 +41,7 @@ export default function SessionListPanel({
   activeSession,
   filter,
   presets,
+  compactCards = false,
   onFilterChange,
   onAttach,
   onRename,
@@ -148,6 +150,7 @@ export default function SessionListPanel({
                         onPinSession={onPinSession}
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
+                        compact={compactCards}
                       />
                     ))}
                   </ul>
@@ -187,6 +190,7 @@ export default function SessionListPanel({
                         onPinSession={onPinSession}
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
+                        compact={compactCards}
                       />
                     ))}
                   </ul>

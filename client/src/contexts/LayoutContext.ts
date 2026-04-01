@@ -8,6 +8,7 @@ type LayoutContextValue = {
   setSidebarCollapsed: (
     collapsed: boolean | ((prev: boolean) => boolean),
   ) => void
+  sidebarCompact: boolean
   settingsOpen: boolean
   setSettingsOpen: (open: boolean | ((prev: boolean) => boolean)) => void
   shellStyle: CSSProperties
