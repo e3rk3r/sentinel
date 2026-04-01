@@ -1,7 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Check, LayoutGrid, Rows3, User } from 'lucide-react'
-import { SESSION_ICONS, getSessionIcon } from './sessionIcons'
 import {
   effectiveAttachedClients,
   isSessionAttachedWithLocalTab,
@@ -20,6 +19,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { TMUX_ICONS, getTmuxIcon } from '@/lib/tmuxIcons'
 import { cn } from '@/lib/utils'
 
 type SessionListItemProps = {
@@ -69,7 +69,7 @@ export default function SessionListItem({
   const activityAbsolute = formatTimestamp(session.activityAt)
   const createdAbsolute = formatTimestamp(session.createdAt)
 
-  const SessionIcon = getSessionIcon(session.icon)
+  const SessionIcon = getTmuxIcon(session.icon)
 
   const shortHash =
     session.hash.length > 7
@@ -203,7 +203,7 @@ export default function SessionListItem({
           <ContextMenuSub>
             <ContextMenuSubTrigger>Change Icon</ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-36">
-              {SESSION_ICONS.map((entry) => {
+              {TMUX_ICONS.map((entry) => {
                 const Icon = entry.icon
                 const isCurrent =
                   session.icon === entry.key ||

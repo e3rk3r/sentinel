@@ -14,9 +14,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SessionListItem from './SessionListItem'
-import { getSessionIcon } from './sessionIcons'
 import type { Session, SessionPreset } from '@/types'
 import { hapticFeedback } from '@/lib/device'
+import { getTmuxIcon } from '@/lib/tmuxIcons'
 import { cn } from '@/lib/utils'
 
 type PinnedSessionsPanelProps = {
@@ -57,7 +57,7 @@ function SortablePresetLaunchItem({
   } = useSortable({
     id: preset.name,
   })
-  const PresetIcon = getSessionIcon(preset.icon)
+  const PresetIcon = getTmuxIcon(preset.icon)
 
   return (
     <li

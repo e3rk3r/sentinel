@@ -14,11 +14,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  DEFAULT_ICON_KEY,
-  SESSION_ICONS,
-  getSessionIcon,
-} from '@/components/sidebar/sessionIcons'
+import { DEFAULT_ICON_KEY, TMUX_ICONS, getTmuxIcon } from '@/lib/tmuxIcons'
 import type { LauncherCwdMode, TmuxLauncher } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -136,7 +132,7 @@ function SortableLauncherItem({
     transition,
     isDragging,
   } = useSortable({ id: launcher.id })
-  const Icon = getSessionIcon(launcher.icon)
+  const Icon = getTmuxIcon(launcher.icon)
 
   return (
     <li
@@ -223,9 +219,9 @@ export default function LaunchersDialog({
   )
   const selectedIconEntry = useMemo(
     () =>
-      SESSION_ICONS.find((entry) => entry.key === draft.icon) ??
-      SESSION_ICONS.find((entry) => entry.key === DEFAULT_ICON_KEY) ??
-      SESSION_ICONS[0],
+      TMUX_ICONS.find((entry) => entry.key === draft.icon) ??
+      TMUX_ICONS.find((entry) => entry.key === DEFAULT_ICON_KEY) ??
+      TMUX_ICONS[0],
     [draft.icon],
   )
 
@@ -337,7 +333,7 @@ export default function LaunchersDialog({
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Starter presets</DropdownMenuLabel>
                   {QUICK_STARTS.map((preset) => {
-                    const Icon = getSessionIcon(preset.icon)
+                    const Icon = getTmuxIcon(preset.icon)
                     return (
                       <DropdownMenuItem
                         key={preset.name}
@@ -422,7 +418,7 @@ export default function LaunchersDialog({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="z-[60]">
-                    {SESSION_ICONS.map((entry) => {
+                    {TMUX_ICONS.map((entry) => {
                       const Icon = entry.icon
                       return (
                         <DropdownMenuItem

@@ -15,7 +15,6 @@ import { CSS } from '@dnd-kit/utilities'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { CSSProperties } from 'react'
 import { ChevronDown, Plus, X } from 'lucide-react'
-import { getSessionIcon } from '@/components/sidebar/sessionIcons'
 import type { TmuxLauncher, WindowInfo } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TooltipHelper } from '@/components/TooltipHelper'
 import { hapticFeedback } from '@/lib/device'
+import { getTmuxIcon } from '@/lib/tmuxIcons'
 import { cn } from '@/lib/utils'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
@@ -108,7 +108,7 @@ function WindowChip({
   })()
   const WindowIcon =
     asText(windowInfo.displayIcon) !== ''
-      ? getSessionIcon(asText(windowInfo.displayIcon))
+      ? getTmuxIcon(asText(windowInfo.displayIcon))
       : null
 
   const content = (
@@ -386,7 +386,7 @@ export default function WindowStrip({
                   onSelect={() => onLaunchLauncher(recentLauncher.id)}
                 >
                   {(() => {
-                    const Icon = getSessionIcon(recentLauncher.icon)
+                    const Icon = getTmuxIcon(recentLauncher.icon)
                     return <Icon className="h-3.5 w-3.5" />
                   })()}
                   <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -403,7 +403,7 @@ export default function WindowStrip({
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Launchers</DropdownMenuLabel>
                 {secondaryLaunchers.map((launcher) => {
-                  const Icon = getSessionIcon(launcher.icon)
+                  const Icon = getTmuxIcon(launcher.icon)
                   return (
                     <DropdownMenuItem
                       key={launcher.id}
