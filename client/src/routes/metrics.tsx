@@ -259,7 +259,9 @@ function MetricsPage() {
                 key={tab}
                 type="button"
                 role="tab"
+                id={`metrics-tab-${tab}`}
                 aria-selected={activeTab === tab}
+                aria-controls={`metrics-panel-${tab}`}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   'rounded-md border px-3 py-1 text-[11px] font-medium capitalize transition-colors',
@@ -273,7 +275,12 @@ function MetricsPage() {
             ))}
           </div>
 
-          <section className="grid min-h-0 grid-rows-[1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary">
+          <section
+            id={`metrics-panel-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`metrics-tab-${activeTab}`}
+            className="grid min-h-0 grid-rows-[1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary"
+          >
             <ScrollArea className="h-full min-h-0">
               <div className="grid gap-3 p-2">
                 {metricsLoading && (
@@ -492,7 +499,10 @@ function MetricsPage() {
           </section>
         </div>
 
-        <footer className="flex items-center justify-between gap-2 overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground">
+        <footer
+          aria-live="polite"
+          className="flex items-center justify-between gap-2 overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground"
+        >
           <span className="min-w-0 flex-1 truncate">{footerSummary}</span>
           <span className="shrink-0 whitespace-nowrap">{footerCadence}</span>
         </footer>

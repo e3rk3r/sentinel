@@ -81,6 +81,8 @@ export function Sparkline({
         viewBox="0 0 200 40"
         preserveAspectRatio="none"
         className="h-full w-full"
+        role="img"
+        aria-label="Metric trend"
       >
         {fill && (
           <defs>

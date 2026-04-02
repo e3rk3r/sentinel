@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from 'vitest'
 import SidebarShell from './SidebarShell'
 import { LayoutContext } from '@/contexts/LayoutContext'
 
+vi.mock('@/hooks/useIsMobileLayout', () => ({
+  useIsMobileLayout: () => false,
+}))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, ...rest }: { children: ReactNode; to: string }) => (
     <a href={to} {...rest}>

@@ -1003,7 +1003,10 @@ function ServicesPage() {
           </section>
         </div>
 
-        <footer className="flex items-center overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground">
+        <footer
+          aria-live="polite"
+          className="flex items-center overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground"
+        >
           <span className="min-w-0 flex-1 truncate">
             {overviewError !== ''
               ? overviewError

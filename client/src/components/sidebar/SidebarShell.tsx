@@ -1,3 +1,4 @@
+import { FocusScope } from '@radix-ui/react-focus-scope'
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
   Activity,
@@ -12,6 +13,7 @@ import {
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLayoutContext } from '@/contexts/LayoutContext'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
 
 type SidebarShellProps = {
@@ -91,8 +93,11 @@ export default function SidebarShell({
   children,
   widthClassName = 'w-[min(85vw,320px)]',
 }: SidebarShellProps) {
+  const isMobile = useIsMobileLayout()
+
   return (
     <aside
+      aria-label="Session sidebar"
       className={cn(
         'fixed left-0 top-0 z-30 flex h-dvh flex-col overflow-hidden border-r border-border bg-card p-2 transition-transform duration-200 ease-out md:static md:z-auto md:h-full md:min-h-0 md:w-auto md:min-w-0 md:translate-x-0 md:transition-none',
         widthClassName,
@@ -101,10 +106,12 @@ export default function SidebarShell({
       )}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <MobileNav />
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
+      <FocusScope trapped={isMobile && isOpen} loop>
+        <MobileNav />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
+      </FocusScope>
     </aside>
   )
 }

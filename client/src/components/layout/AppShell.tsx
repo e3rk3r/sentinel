@@ -69,15 +69,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
           'fixed inset-0 z-20 bg-black/45 md:hidden',
           sidebarOpen ? 'block' : 'hidden',
         )}
-        role="presentation"
-        aria-label="Close sidebar"
         onClick={() => setSidebarOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setSidebarOpen(false)
-          }
-        }}
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>

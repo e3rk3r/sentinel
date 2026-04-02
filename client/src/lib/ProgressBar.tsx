@@ -10,7 +10,13 @@ export function ProgressBar({ percent }: { percent: number }) {
         : 'bg-emerald-500'
 
   return (
-    <div className="mt-1.5 h-1.5 w-full rounded-full bg-surface-overlay">
+    <div
+      className="mt-1.5 h-1.5 w-full rounded-full bg-surface-overlay"
+      role="progressbar"
+      aria-valuenow={clamped}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <div
         className={cn('h-1.5 rounded-full', color)}
         style={{ width: `${clamped}%` }}

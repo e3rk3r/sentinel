@@ -294,7 +294,9 @@ export default function SettingsDialog({
             <button
               type="button"
               role="tab"
+              id="settings-tab-appearance"
               aria-selected={activeSection === 'appearance'}
+              aria-controls="settings-panel-appearance"
               className={sectionButtonClass('appearance')}
               onClick={() => setActiveSection('appearance')}
             >
@@ -303,7 +305,9 @@ export default function SettingsDialog({
             <button
               type="button"
               role="tab"
+              id="settings-tab-app"
               aria-selected={activeSection === 'app'}
+              aria-controls="settings-panel-app"
               className={sectionButtonClass('app')}
               onClick={() => setActiveSection('app')}
             >
@@ -312,7 +316,9 @@ export default function SettingsDialog({
             <button
               type="button"
               role="tab"
+              id="settings-tab-notifications"
               aria-selected={activeSection === 'notifications'}
+              aria-controls="settings-panel-notifications"
               className={sectionButtonClass('notifications')}
               onClick={() => setActiveSection('notifications')}
             >
@@ -321,7 +327,9 @@ export default function SettingsDialog({
             <button
               type="button"
               role="tab"
+              id="settings-tab-data"
               aria-selected={activeSection === 'data'}
+              aria-controls="settings-panel-data"
               className={sectionButtonClass('data')}
               onClick={() => setActiveSection('data')}
             >
@@ -330,7 +338,9 @@ export default function SettingsDialog({
             <button
               type="button"
               role="tab"
+              id="settings-tab-about"
               aria-selected={activeSection === 'about'}
+              aria-controls="settings-panel-about"
               className={sectionButtonClass('about')}
               onClick={() => setActiveSection('about')}
             >
@@ -339,7 +349,12 @@ export default function SettingsDialog({
           </nav>
 
           {activeSection === 'appearance' && (
-            <section className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3">
+            <section
+              id="settings-panel-appearance"
+              role="tabpanel"
+              aria-labelledby="settings-tab-appearance"
+              className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3"
+            >
               <h3 className="mb-1 text-xs font-medium">Terminal Theme</h3>
               <p className="mb-3 text-xs text-muted-foreground">
                 Choose a color theme for the terminal emulator.
@@ -349,7 +364,12 @@ export default function SettingsDialog({
           )}
 
           {activeSection === 'app' && (
-            <section className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3">
+            <section
+              id="settings-panel-app"
+              role="tabpanel"
+              aria-labelledby="settings-tab-app"
+              className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3"
+            >
               <div className="mb-1 flex items-center gap-2">
                 <h3 className="text-xs font-medium">Progressive App</h3>
                 <Badge
@@ -450,7 +470,12 @@ export default function SettingsDialog({
           )}
 
           {activeSection === 'notifications' && (
-            <section className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3">
+            <section
+              id="settings-panel-notifications"
+              role="tabpanel"
+              aria-labelledby="settings-tab-notifications"
+              className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3"
+            >
               <h3 className="mb-1 text-xs font-medium">Alert Webhooks</h3>
               <p className="mb-3 text-xs text-muted-foreground">
                 Send HTTP POST notifications when alert events occur.
@@ -524,7 +549,12 @@ export default function SettingsDialog({
           )}
 
           {activeSection === 'data' && (
-            <section className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3">
+            <section
+              id="settings-panel-data"
+              role="tabpanel"
+              aria-labelledby="settings-tab-data"
+              className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3"
+            >
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-medium">Data & Storage</h3>
                 <div className="flex items-center gap-2">
@@ -639,7 +669,12 @@ export default function SettingsDialog({
           )}
 
           {activeSection === 'about' && (
-            <section className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3">
+            <section
+              id="settings-panel-about"
+              role="tabpanel"
+              aria-labelledby="settings-tab-about"
+              className="min-h-0 overflow-x-hidden overflow-y-auto rounded-md border border-border-subtle bg-secondary p-3"
+            >
               <h3 className="mb-1 text-xs font-medium">Sentinel</h3>
               <p className="text-xs text-muted-foreground">
                 Version: <span className="font-mono">{version || 'dev'}</span>

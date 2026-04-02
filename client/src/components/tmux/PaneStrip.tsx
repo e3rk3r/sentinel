@@ -323,6 +323,7 @@ export default function PaneStrip({
                   )}
                   type="button"
                   disabled={!canInteract}
+                  aria-label={`Select pane ${paneLabel}`}
                   onClick={() => {
                     if (!canInteract) return
                     onSelectPane(paneID)

@@ -559,7 +559,9 @@ export default function GuardrailsDialog({
               <button
                 type="button"
                 role="tab"
+                id="guardrails-tab-rules"
                 aria-selected={activeTab === 'rules'}
+                aria-controls="guardrails-panel-rules"
                 className={tabClass('rules')}
                 onClick={() => setActiveTab('rules')}
               >
@@ -568,7 +570,9 @@ export default function GuardrailsDialog({
               <button
                 type="button"
                 role="tab"
+                id="guardrails-tab-audit"
                 aria-selected={activeTab === 'audit'}
+                aria-controls="guardrails-panel-audit"
                 className={tabClass('audit')}
                 onClick={() => setActiveTab('audit')}
               >
@@ -610,7 +614,11 @@ export default function GuardrailsDialog({
         <section className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border-subtle bg-secondary">
           <div className="grid gap-1.5 p-2">
             {activeTab === 'rules' && (
-              <>
+              <div
+                id="guardrails-panel-rules"
+                role="tabpanel"
+                aria-labelledby="guardrails-tab-rules"
+              >
                 {showAddForm && (
                   <RuleForm
                     title="New Rule"
@@ -775,11 +783,15 @@ export default function GuardrailsDialog({
                     </Button>
                   </div>
                 )}
-              </>
+              </div>
             )}
 
             {activeTab === 'audit' && (
-              <>
+              <div
+                id="guardrails-panel-audit"
+                role="tabpanel"
+                aria-labelledby="guardrails-tab-audit"
+              >
                 {auditLoading &&
                   Array.from({ length: 5 }).map((_, idx) => (
                     <div
@@ -839,7 +851,7 @@ export default function GuardrailsDialog({
                     <p>Guardrail evaluations will appear here as they occur.</p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </section>

@@ -135,6 +135,7 @@ export default function AlertsSidebar({
                 key={sev}
                 type="button"
                 onClick={() => onSeverityChange(sev)}
+                aria-pressed={selectedSeverity === sev}
                 className={cn(
                   'flex-1 cursor-pointer rounded-md border px-2 py-1 text-[11px] font-medium transition-colors',
                   selectedSeverity === sev

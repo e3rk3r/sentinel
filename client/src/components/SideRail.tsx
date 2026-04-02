@@ -86,7 +86,11 @@ export default function SideRail({
   ]
 
   return (
-    <aside className="hidden w-12 flex-col gap-1 border-r border-border-subtle bg-surface-raised px-1 py-2 md:flex">
+    <aside
+      role="navigation"
+      aria-label="Main navigation"
+      className="hidden w-12 flex-col gap-1 border-r border-border-subtle bg-surface-raised px-1 py-2 md:flex"
+    >
       {navItems.map(({ to, label, active, Icon }) => (
         <TooltipHelper key={to} content={label} side="right">
           <Link

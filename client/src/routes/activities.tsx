@@ -350,7 +350,10 @@ function ActivitiesPage() {
           </div>
         </section>
 
-        <footer className="flex items-center justify-between gap-2 overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground">
+        <footer
+          aria-live="polite"
+          className="flex items-center justify-between gap-2 overflow-hidden border-t border-border bg-card px-2.5 text-[12px] text-secondary-foreground"
+        >
           <span className="min-w-0 flex-1 truncate">{footerSummary}</span>
           <span className="shrink-0 whitespace-nowrap">{footerCadence}</span>
         </footer>

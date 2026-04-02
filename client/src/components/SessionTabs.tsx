@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
@@ -9,6 +10,7 @@ import {
 import {
   SortableContext,
   horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -150,6 +152,9 @@ export default function SessionTabs({
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   )
 
   const handleDragEnd = useCallback(
@@ -170,6 +175,7 @@ export default function SessionTabs({
   return (
     <div
       role="tablist"
+      aria-label="Session tabs"
       className="no-scrollbar flex items-stretch overflow-x-auto overflow-y-hidden border-b border-border bg-surface-sunken"
     >
       {openTabs.length === 0 && (

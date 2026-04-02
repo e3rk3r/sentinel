@@ -92,6 +92,8 @@ export function RunbookJobHistory({
                     type="button"
                     className="mt-0.5 shrink-0 cursor-pointer text-muted-foreground"
                     onClick={() => toggleJobExpand(job.id)}
+                    aria-label="Toggle job details"
+                    aria-expanded={isExpanded}
                   >
                     {isExpanded ? (
                       <ChevronDown className="h-3 w-3" />
