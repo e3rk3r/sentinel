@@ -203,13 +203,12 @@ const ServicesBrowseControls = memo(function ServicesBrowseControls({
   }, [searchValue])
 
   useEffect(() => {
-    if (debouncedSearchDraft === searchValue) {
-      return
-    }
+    if (debouncedSearchDraft === searchValue) return
+    if (debouncedSearchDraft !== searchDraft) return
     startTransition(() => {
       onSearchChange(debouncedSearchDraft)
     })
-  }, [debouncedSearchDraft, onSearchChange, searchValue])
+  }, [debouncedSearchDraft, onSearchChange, searchDraft, searchValue])
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-2">
