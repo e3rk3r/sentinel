@@ -348,14 +348,20 @@ export default function CreateSessionDialog({
                   <div className="mt-2 rounded-md border border-border-subtle p-2.5">
                     <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-secondary-foreground">
                       Run as user
-                      <Select value={user} onValueChange={setUser}>
+                      <Select
+                        value={user || '__default__'}
+                        onValueChange={(v) =>
+                          setUser(v === '__default__' ? '' : v)
+                        }
+                      >
                         <SelectTrigger className="w-full cursor-pointer bg-surface-overlay text-[12px]">
-                          <SelectValue
-                            placeholder={`${meta.processUser || 'default'} (default)`}
-                          />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="" className="cursor-pointer">
+                          <SelectItem
+                            value="__default__"
+                            className="cursor-pointer"
+                          >
                             {meta.processUser || 'default'} (default)
                           </SelectItem>
                           {meta.allowedUsers
