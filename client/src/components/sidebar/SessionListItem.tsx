@@ -121,13 +121,13 @@ export default function SessionListItem({
               <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
                 <SessionIcon
                   className={cn(
-                    'h-3.5 w-3.5 shrink-0',
+                    'h-3 w-3 shrink-0',
                     !isAttached && 'text-muted-foreground',
                   )}
                 />
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                    'min-w-0 flex-1 truncate text-[11px] font-medium',
                     !isAttached && 'text-muted-foreground',
                   )}
                 >
