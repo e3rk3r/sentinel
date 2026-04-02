@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Outlet, createRootRoute } from '@tanstack/react-router'
+import { Outlet, createRootRoute, useRouterState } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ServerOfflineBanner } from '@/components/ServerOfflineBanner'
@@ -20,6 +20,7 @@ import { LayoutContext } from '@/contexts/LayoutContext'
 import { MetaContext } from '@/contexts/MetaContext'
 import { ToastContext } from '@/contexts/ToastContext'
 import { TokenContext } from '@/contexts/TokenContext'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useSentinelMeta } from '@/hooks/useSentinelMeta'
 import { useServerStatus } from '@/hooks/useServerStatus'
 import { useShellLayout } from '@/hooks/useShellLayout'
@@ -142,7 +143,7 @@ function TokenGateDialog({
 
 function LoadingGate() {
   return (
-    <div className="grid h-screen place-items-center bg-background text-foreground">
+    <div className="grid h-dvh place-items-center bg-background text-foreground">
       <div className="text-center">
         <p className="text-sm text-secondary-foreground">Loading Sentinel...</p>
       </div>
@@ -167,10 +168,20 @@ function RootComponent() {
 
   const { offline, retry } = useServerStatus()
   const meta = useSentinelMeta()
+  const isMobile = useIsMobileLayout()
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
   useEffect(() => {
     document.title = formatPageTitle(meta.hostname)
   }, [meta.hostname])
+
+  useEffect(() => {
+    if (isMobile) {
+      layout.setSidebarOpen(false)
+    }
+  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const authenticated = !meta.tokenRequired || !meta.unauthorized
   const needsTokenGate = meta.loaded && meta.tokenRequired && meta.unauthorized
@@ -212,7 +223,7 @@ function RootComponent() {
 
 function NotFoundComponent() {
   return (
-    <div className="grid h-screen place-items-center bg-background text-foreground">
+    <div className="grid h-dvh place-items-center bg-background text-foreground">
       <div className="text-center">
         <h1 className="text-2xl font-bold">404</h1>
         <p className="mt-2 text-secondary-foreground">Page not found</p>
@@ -229,7 +240,7 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error }: { error: Error }) {
   return (
-    <div className="grid h-screen place-items-center bg-background text-foreground">
+    <div className="grid h-dvh place-items-center bg-background text-foreground">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-destructive">Error</h1>
         <p className="mt-2 text-secondary-foreground">{error.message}</p>

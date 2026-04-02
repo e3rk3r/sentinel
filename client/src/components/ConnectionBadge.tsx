@@ -5,15 +5,18 @@ import { cn } from '@/lib/utils'
 
 type ConnectionBadgeProps = {
   state: ConnectionState
+  detail?: string
   onClick?: () => void
 }
 
 export default function ConnectionBadge({
   state,
+  detail,
   onClick,
 }: ConnectionBadgeProps) {
   const label = connectionLabel(state)
-  const tooltip = onClick ? `${label} — click to resync` : label
+  const base = detail && state !== 'connected' ? `${label} — ${detail}` : label
+  const tooltip = onClick ? `${base} — click to resync` : base
   return (
     <TooltipHelper content={tooltip}>
       <span

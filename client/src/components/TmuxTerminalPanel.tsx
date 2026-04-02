@@ -66,7 +66,7 @@ type TmuxTerminalPanelProps = {
 
 export default function TmuxTerminalPanel({
   connectionState,
-  statusDetail: _statusDetail,
+  statusDetail,
   sidebarCollapsed,
   openTabs,
   activeSession,
@@ -256,7 +256,11 @@ export default function TmuxTerminalPanel({
               <History className="h-3.5 w-3.5" />
             </Button>
           </TooltipHelper>
-          <ConnectionBadge state={connectionState} onClick={onResync} />
+          <ConnectionBadge
+            state={connectionState}
+            detail={statusDetail}
+            onClick={onResync}
+          />
         </div>
       </header>
 

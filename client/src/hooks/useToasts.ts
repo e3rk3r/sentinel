@@ -17,6 +17,11 @@ type EnqueueToast = {
 }
 
 const DEFAULT_TTL_MS = 3600
+const ERROR_TTL_MS = 8000
+
+function defaultTtl(level: ToastLevel): number {
+  return level === 'error' ? ERROR_TTL_MS : DEFAULT_TTL_MS
+}
 
 export function useToasts() {
   const [toasts, setToasts] = useState<Array<ToastMessage>>([])
@@ -33,7 +38,8 @@ export function useToasts() {
   }, [])
 
   const pushToast = useCallback(
-    ({ level, title, message, ttlMs = DEFAULT_TTL_MS }: EnqueueToast) => {
+    ({ level, title, message, ttlMs }: EnqueueToast) => {
+      const ttl = ttlMs ?? defaultTtl(level)
       const id = nextIdRef.current
       nextIdRef.current += 1
 
@@ -56,7 +62,7 @@ export function useToasts() {
 
       const timerId = window.setTimeout(() => {
         dismissToast(id)
-      }, ttlMs)
+      }, ttl)
       timersRef.current.set(id, timerId)
     },
     [dismissToast],
