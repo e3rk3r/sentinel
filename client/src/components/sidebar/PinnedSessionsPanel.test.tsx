@@ -5,8 +5,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import PinnedSessionsPanel from './PinnedSessionsPanel'
 
+const { useIsMobileLayoutMock } = vi.hoisted(() => ({
+  useIsMobileLayoutMock: vi.fn(() => false),
+}))
+
 vi.mock('@/components/TooltipHelper', () => ({
   TooltipHelper: ({ children }: { children: ReactNode }) => children,
+}))
+
+vi.mock('@/hooks/useIsMobileLayout', () => ({
+  useIsMobileLayout: useIsMobileLayoutMock,
 }))
 
 vi.mock('@/hooks/useDateFormat', () => ({
@@ -17,6 +25,7 @@ vi.mock('@/hooks/useDateFormat', () => ({
 
 afterEach(() => {
   cleanup()
+  useIsMobileLayoutMock.mockReturnValue(false)
 })
 
 const pinnedPreset = {
@@ -118,5 +127,33 @@ describe('PinnedSessionsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /api/i }))
 
     expect(onLaunchPreset).toHaveBeenCalledWith('api')
+  })
+
+  it('keeps pinned preset launch buttons scrollable on mobile', () => {
+    useIsMobileLayoutMock.mockReturnValue(true)
+
+    render(
+      <PinnedSessionsPanel
+        sessions={[]}
+        presets={[pinnedPreset]}
+        filter=""
+        openTabs={[]}
+        activeSession=""
+        tmuxUnavailable={false}
+        onAttach={() => {}}
+        onRename={() => {}}
+        onDetach={() => {}}
+        onKill={() => {}}
+        onChangeIcon={() => {}}
+        onPinSession={() => {}}
+        onUnpinSession={() => {}}
+        onLaunchPreset={() => {}}
+        onReorder={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /api/i }).style.touchAction).toBe(
+      'pan-y',
+    )
   })
 })

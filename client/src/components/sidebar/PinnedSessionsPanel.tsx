@@ -16,8 +16,8 @@ import { CSS } from '@dnd-kit/utilities'
 import SessionListItem from './SessionListItem'
 import type { Session, SessionPreset } from '@/types'
 import { hapticFeedback } from '@/lib/device'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { getTmuxIcon } from '@/lib/tmuxIcons'
-import { cn } from '@/lib/utils'
 
 type PinnedSessionsPanelProps = {
   sessions: Array<Session>
@@ -36,16 +36,17 @@ type PinnedSessionsPanelProps = {
   onUnpinSession: (session: string) => void
   onLaunchPreset: (name: string) => void
   onReorder: (activeName: string, overName: string) => void
-  fillHeight?: boolean
 }
 
 function SortablePresetLaunchItem({
   preset,
   tmuxUnavailable,
+  dragEnabled = true,
   onLaunchPreset,
 }: {
   preset: SessionPreset
   tmuxUnavailable: boolean
+  dragEnabled?: boolean
   onLaunchPreset: (name: string) => void
 }) {
   const {
@@ -64,19 +65,20 @@ function SortablePresetLaunchItem({
     <li
       ref={setNodeRef}
       style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : undefined,
-        zIndex: isDragging ? 10 : undefined,
+        transform: dragEnabled ? CSS.Transform.toString(transform) : undefined,
+        transition: dragEnabled ? transition : undefined,
+        opacity: dragEnabled && isDragging ? 0.5 : undefined,
+        zIndex: dragEnabled && isDragging ? 10 : undefined,
       }}
     >
       <button
         type="button"
         className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border-subtle bg-surface-elevated px-2.5 py-2 text-left transition-colors hover:bg-secondary"
+        style={{ touchAction: dragEnabled ? undefined : 'pan-y' }}
         onClick={() => onLaunchPreset(preset.name)}
         disabled={tmuxUnavailable}
-        {...attributes}
-        {...listeners}
+        {...(dragEnabled ? attributes : {})}
+        {...(dragEnabled ? listeners : {})}
       >
         <PresetIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1">
@@ -112,8 +114,9 @@ export default function PinnedSessionsPanel({
   onUnpinSession,
   onLaunchPreset,
   onReorder,
-  fillHeight = false,
 }: PinnedSessionsPanelProps) {
+  const isMobileLayout = useIsMobileLayout()
+  const dragEnabled = !isMobileLayout
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -149,15 +152,7 @@ export default function PinnedSessionsPanel({
   }
 
   return (
-    <section
-      className={cn(
-        'rounded-lg border border-border-subtle bg-secondary',
-        fillHeight && 'flex h-full min-h-0 flex-col',
-      )}
-    >
-      <div className="border-b border-border-subtle px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-secondary-foreground">
-        Pinned
-      </div>
+    <section className="rounded-lg border border-border-subtle bg-secondary">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -167,12 +162,10 @@ export default function PinnedSessionsPanel({
           items={visiblePresets.map((preset) => preset.name)}
           strategy={verticalListSortingStrategy}
         >
-          <ul
-            className={cn(
-              'grid auto-rows-max content-start list-none gap-1.5 p-2',
-              fillHeight && 'min-h-0 flex-1 overflow-y-auto',
-            )}
-          >
+          <ul className="grid auto-rows-max content-start list-none gap-1.5 p-2">
+            <li className="px-1 pt-1 text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+              Pinned
+            </li>
             {visiblePresets.map((preset) => {
               const session = sessionsByName.get(preset.name)
               if (session) {
@@ -191,6 +184,7 @@ export default function PinnedSessionsPanel({
                     onUnpinSession={onUnpinSession}
                     canDetach={openTabsSet.has(session.name)}
                     compact={compactCards}
+                    dragEnabled={dragEnabled}
                   />
                 )
               }
@@ -204,6 +198,7 @@ export default function PinnedSessionsPanel({
                   key={preset.name}
                   preset={preset}
                   tmuxUnavailable={tmuxUnavailable}
+                  dragEnabled={dragEnabled}
                   onLaunchPreset={onLaunchPreset}
                 />
               )

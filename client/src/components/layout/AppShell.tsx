@@ -29,7 +29,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
   const hasSidebar = sidebar != null
   const effectiveCollapsed = !hasSidebar || sidebarCollapsed
   const gridClass = effectiveCollapsed
-    ? 'grid h-full grid-cols-[1fr] grid-rows-[1fr] md:[grid-template-columns:48px_1fr]'
+    ? 'grid h-full grid-cols-[1fr] grid-rows-[minmax(0,1fr)] md:[grid-template-columns:48px_1fr]'
     : layoutGridClass
 
   const isMobile = useIsMobileLayout()

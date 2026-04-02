@@ -24,17 +24,8 @@ vi.mock('./sidebar/SessionControls', () => ({
 }))
 
 vi.mock('./sidebar/PinnedSessionsPanel', () => ({
-  default: ({
-    fillHeight,
-    compactCards,
-  }: {
-    fillHeight?: boolean
-    compactCards?: boolean
-  }) => (
-    <div>
-      {fillHeight ? 'Pinned Fill' : 'Pinned'}
-      {compactCards ? ' Compact' : ''}
-    </div>
+  default: ({ compactCards }: { compactCards?: boolean }) => (
+    <div>{compactCards ? 'Pinned Compact' : 'Pinned'}</div>
   ),
 }))
 
@@ -111,7 +102,7 @@ describe('SessionSidebar', () => {
       />,
     )
 
-    expect(screen.getByText('Pinned Fill')).toBeTruthy()
+    expect(screen.getByText('Pinned')).toBeTruthy()
     expect(screen.queryByText('Session List')).toBeNull()
   })
 
@@ -169,5 +160,25 @@ describe('SessionSidebar', () => {
 
     expect(screen.getByText('Pinned Compact')).toBeTruthy()
     expect(screen.getByText('Session List Compact')).toBeTruthy()
+  })
+
+  it('lets the session sidebar own scrolling on desktop', () => {
+    const { container } = render(<SessionSidebar {...baseProps} />)
+
+    const root = container.firstElementChild?.firstElementChild
+
+    expect(root?.className).toContain('flex-1')
+    expect(root?.className).toContain('overflow-y-auto')
+    expect(root?.className).toContain('overscroll-contain')
+  })
+
+  it('uses the same single scroll container on mobile', () => {
+    const { container } = render(<SessionSidebar {...baseProps} />)
+
+    const root = container.firstElementChild?.firstElementChild
+
+    expect(root?.className).toContain('flex-1')
+    expect(root?.className).toContain('overflow-y-auto')
+    expect(root?.className).toContain('overscroll-contain')
   })
 })

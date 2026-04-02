@@ -68,17 +68,17 @@ export function RunbookJobHistory({
   )
 
   return (
-    <div className="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary">
-      <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          Job History
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          {jobs.length} runs
-        </span>
-      </div>
+    <div className="grid min-h-0 grid-rows-[1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary">
       <ScrollArea className="h-full min-h-0">
         <div className="grid gap-1 p-2">
+          <div className="flex items-center justify-between px-1 pt-1">
+            <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+              Job History
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {jobs.length} runs
+            </span>
+          </div>
           {jobs.map((job) => {
             const isExpanded = expandedJobId === job.id
             const steps = job.stepResults

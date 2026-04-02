@@ -204,4 +204,27 @@ describe('SessionListItem', () => {
     expect(screen.queryByText('ready')).toBeNull()
     expect(screen.getByText('abc…456')).toBeTruthy()
   })
+
+  it('uses touch pan-y when drag is disabled', () => {
+    render(
+      <SortableTestShell>
+        <SessionListItem
+          session={baseSession}
+          isActive={false}
+          isPinned={false}
+          dragEnabled={false}
+          onAttach={() => {}}
+          onRename={() => {}}
+          onDetach={() => {}}
+          onKill={() => {}}
+          onChangeIcon={() => {}}
+          onPinSession={() => {}}
+          onUnpinSession={() => {}}
+          canDetach={false}
+        />
+      </SortableTestShell>,
+    )
+
+    expect(screen.getByRole('button').style.touchAction).toBe('pan-y')
+  })
 })

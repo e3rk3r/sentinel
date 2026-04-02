@@ -79,7 +79,7 @@ export default function SessionSidebar({
 
   return (
     <SidebarShell isOpen={isOpen} collapsed={collapsed}>
-      <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain no-scrollbar">
         <SessionControls
           sessionCount={totalSessions}
           tokenRequired={tokenRequired}
@@ -92,14 +92,34 @@ export default function SessionSidebar({
           onCreate={onCreate}
         />
 
-        <div className={shouldHideRegularPanel ? 'min-h-0 flex-1' : ''}>
-          <PinnedSessionsPanel
+        <PinnedSessionsPanel
+          sessions={sessions}
+          presets={presets}
+          filter={filter}
+          openTabs={openTabs}
+          activeSession={activeSession}
+          tmuxUnavailable={tmuxUnavailable}
+          onAttach={onAttach}
+          onRename={onRename}
+          onDetach={onDetach}
+          onKill={onKill}
+          onChangeIcon={onChangeIcon}
+          onPinSession={onPinSession}
+          onUnpinSession={onUnpinSession}
+          onLaunchPreset={onLaunchPreset}
+          onReorder={onReorderPinned}
+          compactCards={sidebarCompact}
+        />
+
+        {!shouldHideRegularPanel && (
+          <SessionListPanel
             sessions={sessions}
-            presets={presets}
-            filter={filter}
+            tmuxUnavailable={tmuxUnavailable}
             openTabs={openTabs}
             activeSession={activeSession}
-            tmuxUnavailable={tmuxUnavailable}
+            filter={filter}
+            presets={presets}
+            onFilterChange={onFilterChange}
             onAttach={onAttach}
             onRename={onRename}
             onDetach={onDetach}
@@ -107,34 +127,9 @@ export default function SessionSidebar({
             onChangeIcon={onChangeIcon}
             onPinSession={onPinSession}
             onUnpinSession={onUnpinSession}
-            onLaunchPreset={onLaunchPreset}
-            onReorder={onReorderPinned}
+            onReorder={onReorderSession}
             compactCards={sidebarCompact}
-            fillHeight={shouldHideRegularPanel}
           />
-        </div>
-
-        {!shouldHideRegularPanel && (
-          <div className="min-h-0 flex-1">
-            <SessionListPanel
-              sessions={sessions}
-              tmuxUnavailable={tmuxUnavailable}
-              openTabs={openTabs}
-              activeSession={activeSession}
-              filter={filter}
-              presets={presets}
-              onFilterChange={onFilterChange}
-              onAttach={onAttach}
-              onRename={onRename}
-              onDetach={onDetach}
-              onKill={onKill}
-              onChangeIcon={onChangeIcon}
-              onPinSession={onPinSession}
-              onUnpinSession={onUnpinSession}
-              onReorder={onReorderSession}
-              compactCards={sidebarCompact}
-            />
-          </div>
         )}
       </div>
     </SidebarShell>

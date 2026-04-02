@@ -27,6 +27,7 @@ type SessionListItemProps = {
   isActive: boolean
   isPinned: boolean
   compact?: boolean
+  dragEnabled?: boolean
   onAttach: (session: string) => void
   onRename: (session: string) => void
   onDetach: (session: string) => void
@@ -42,6 +43,7 @@ export default function SessionListItem({
   isActive,
   isPinned,
   compact = false,
+  dragEnabled = true,
   onAttach,
   onRename,
   onDetach,
@@ -87,10 +89,10 @@ export default function SessionListItem({
       ref={setNodeRef}
       className="min-w-0"
       style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : undefined,
-        zIndex: isDragging ? 10 : undefined,
+        transform: dragEnabled ? CSS.Transform.toString(transform) : undefined,
+        transition: dragEnabled ? transition : undefined,
+        opacity: dragEnabled && isDragging ? 0.5 : undefined,
+        zIndex: dragEnabled && isDragging ? 10 : undefined,
       }}
     >
       <ContextMenu>
@@ -105,8 +107,9 @@ export default function SessionListItem({
             )}
             type="button"
             onClick={handleOpen}
-            {...attributes}
-            {...listeners}
+            style={{ touchAction: dragEnabled ? undefined : 'pan-y' }}
+            {...(dragEnabled ? attributes : {})}
+            {...(dragEnabled ? listeners : {})}
           >
             {/* Line 1: Icon + Name + Hash + Activity */}
             <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">

@@ -14,6 +14,7 @@ import type { Session, SessionPreset } from '../../types'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { hapticFeedback } from '@/lib/device'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
 type SessionListPanelProps = {
   sessions: Array<Session>
@@ -52,6 +53,8 @@ export default function SessionListPanel({
   onUnpinSession,
   onReorder,
 }: SessionListPanelProps) {
+  const isMobileLayout = useIsMobileLayout()
+  const dragEnabled = !isMobileLayout
   const hasFilter = filter.trim() !== ''
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -92,8 +95,8 @@ export default function SessionListPanel({
   const visibleSessionCount = attachedSessions.length + idleSessions.length
 
   return (
-    <section className="h-full min-h-0 overflow-hidden rounded-lg border border-border-subtle bg-secondary">
-      <ul className="grid min-h-0 min-w-0 grid-cols-1 list-none gap-1.5 overflow-x-hidden overflow-y-auto p-2">
+    <section className="rounded-lg border border-border-subtle bg-secondary">
+      <ul className="grid min-w-0 grid-cols-1 list-none gap-1.5 overflow-x-hidden p-2">
         {visibleSessionCount === 0 && (
           <li>
             <EmptyState variant="inline" className="grid gap-1 p-3">
@@ -151,6 +154,7 @@ export default function SessionListPanel({
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
                         compact={compactCards}
+                        dragEnabled={dragEnabled}
                       />
                     ))}
                   </ul>
@@ -191,6 +195,7 @@ export default function SessionListPanel({
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
                         compact={compactCards}
+                        dragEnabled={dragEnabled}
                       />
                     ))}
                   </ul>
