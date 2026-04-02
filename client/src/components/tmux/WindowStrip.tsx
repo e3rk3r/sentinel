@@ -198,6 +198,11 @@ function WindowChip({
             <span className="min-w-0 truncate pt-[3px] leading-none">
               {displayName}
             </span>
+            {hasUnread && unreadPanes > 1 && (
+              <span className="ml-0.5 text-[9px] text-warning-foreground">
+                {unreadPanes}
+              </span>
+            )}
           </>
         )}
       </button>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import ConnectionBadge from './ConnectionBadge'
 import SessionTabs from './SessionTabs'
 import { TooltipHelper } from './TooltipHelper'
+import TmuxHelpDialog from './TmuxHelpDialog'
 import TerminalControls from './terminal/TerminalControls'
 import PaneStrip from './tmux/PaneStrip'
 import TerminalHost from './tmux/TerminalHost'
@@ -256,6 +257,10 @@ export default function TmuxTerminalPanel({
               <History className="h-3.5 w-3.5" />
             </Button>
           </TooltipHelper>
+          <TmuxHelpDialog
+            buttonClassName="h-6 w-6 cursor-pointer"
+            iconClassName="h-3.5 w-3.5"
+          />
           <ConnectionBadge
             state={connectionState}
             detail={statusDetail}
@@ -366,24 +371,28 @@ export default function TmuxTerminalPanel({
           />
         </div>
         <div className="flex shrink-0 items-center gap-1 whitespace-nowrap">
-          <button
-            type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded text-secondary-foreground hover:bg-surface-active"
-            onClick={onZoomOut}
-            disabled={!hasActiveSession}
-            aria-label="Decrease font size"
-          >
-            <Minus className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded text-secondary-foreground hover:bg-surface-active"
-            onClick={onZoomIn}
-            disabled={!hasActiveSession}
-            aria-label="Increase font size"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
+          <TooltipHelper content="Zoom out">
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded text-secondary-foreground hover:bg-surface-active"
+              onClick={onZoomOut}
+              disabled={!hasActiveSession}
+              aria-label="Decrease font size"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+          </TooltipHelper>
+          <TooltipHelper content="Zoom in">
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded text-secondary-foreground hover:bg-surface-active"
+              onClick={onZoomIn}
+              disabled={!hasActiveSession}
+              aria-label="Increase font size"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </TooltipHelper>
           <span className="ml-0.5">
             cols {termCols} rows {termRows}
           </span>

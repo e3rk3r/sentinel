@@ -40,7 +40,15 @@ const shellShortcuts: ReadonlyArray<Shortcut> = [
   { keys: 'Ctrl-e', desc: 'Move cursor to end of line' },
 ]
 
-export default function TmuxHelpDialog() {
+type TmuxHelpDialogProps = {
+  buttonClassName?: string
+  iconClassName?: string
+}
+
+export default function TmuxHelpDialog({
+  buttonClassName = 'cursor-pointer border border-border bg-surface-hover text-secondary-foreground hover:bg-accent hover:text-foreground',
+  iconClassName = 'h-4 w-4',
+}: TmuxHelpDialogProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -49,11 +57,11 @@ export default function TmuxHelpDialog() {
         <Button
           variant="ghost"
           size="icon"
-          className="cursor-pointer border border-border bg-surface-hover text-secondary-foreground hover:bg-accent hover:text-foreground"
+          className={buttonClassName}
           onClick={() => setOpen(true)}
           aria-label="About Terminal"
         >
-          <CircleHelp className="h-4 w-4" />
+          <CircleHelp className={iconClassName} />
         </Button>
       </TooltipHelper>
       <Dialog open={open} onOpenChange={setOpen}>
