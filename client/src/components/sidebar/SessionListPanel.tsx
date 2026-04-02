@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import SessionListItem from './SessionListItem'
 import { isSessionAttached } from './sessionAttachment'
+import type { SidebarDensity } from '@/contexts/LayoutContext'
 import type { Session, SessionPreset } from '../../types'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -28,7 +29,7 @@ type SessionListPanelProps = {
   activeSession: string
   filter: string
   presets: Array<SessionPreset>
-  compactCards?: boolean
+  density?: SidebarDensity
   onFilterChange: (value: string) => void
   onAttach: (session: string) => void
   onRename: (session: string) => void
@@ -47,7 +48,7 @@ export default function SessionListPanel({
   activeSession,
   filter,
   presets,
-  compactCards = false,
+  density = 'compact',
   onFilterChange,
   onAttach,
   onRename,
@@ -161,7 +162,7 @@ export default function SessionListPanel({
                         onPinSession={onPinSession}
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
-                        compact={compactCards}
+                        density={density}
                         dragEnabled={dragEnabled}
                       />
                     ))}
@@ -202,7 +203,7 @@ export default function SessionListPanel({
                         onPinSession={onPinSession}
                         onUnpinSession={onUnpinSession}
                         canDetach={openTabsSet.has(session.name)}
-                        compact={compactCards}
+                        density={density}
                         dragEnabled={dragEnabled}
                       />
                     ))}

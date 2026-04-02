@@ -6,6 +6,7 @@ import {
   isSessionAttachedWithLocalTab,
 } from './sessionAttachment'
 import { formatRelativeTime } from './sessionTime'
+import type { SidebarDensity } from '@/contexts/LayoutContext'
 import type { Session } from '../../types'
 import { TooltipHelper } from '@/components/TooltipHelper'
 import { useDateFormat } from '@/hooks/useDateFormat'
@@ -26,7 +27,7 @@ type SessionListItemProps = {
   session: Session
   isActive: boolean
   isPinned: boolean
-  compact?: boolean
+  density?: SidebarDensity
   dragEnabled?: boolean
   onAttach: (session: string) => void
   onRename: (session: string) => void
@@ -42,7 +43,7 @@ export default function SessionListItem({
   session,
   isActive,
   isPinned,
-  compact = false,
+  density = 'compact',
   dragEnabled = true,
   onAttach,
   onRename,
@@ -100,7 +101,11 @@ export default function SessionListItem({
           <button
             className={cn(
               'group w-full max-w-full cursor-pointer overflow-hidden rounded-lg border bg-surface-elevated px-2.5 text-left outline-none transition-colors',
-              compact ? 'py-1.5' : 'py-2',
+              density === 'minimal'
+                ? 'py-1'
+                : density === 'compact'
+                  ? 'py-1.5'
+                  : 'py-2',
               isActive
                 ? 'border-primary/60 bg-surface-active-primary shadow-[inset_0_0_0_1px_rgba(59,130,246,.25)]'
                 : 'border-border-subtle hover:border-border hover:bg-secondary focus-within:border-border',
@@ -111,15 +116,15 @@ export default function SessionListItem({
             {...(dragEnabled ? attributes : {})}
             {...(dragEnabled ? listeners : {})}
           >
-            {/* Line 1: Icon + Name + Hash + Activity */}
-            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-              <SessionIcon
-                className={cn(
-                  'h-3.5 w-3.5 shrink-0',
-                  !isAttached && 'text-muted-foreground',
-                )}
-              />
-              <TooltipHelper content={`Created: ${createdAbsolute}`}>
+            {density === 'minimal' ? (
+              /* Minimal: single row — icon, name, relative time */
+              <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                <SessionIcon
+                  className={cn(
+                    'h-3.5 w-3.5 shrink-0',
+                    !isAttached && 'text-muted-foreground',
+                  )}
+                />
                 <span
                   className={cn(
                     'min-w-0 flex-1 truncate text-[12px] font-semibold',
@@ -128,90 +133,117 @@ export default function SessionListItem({
                 >
                   {session.name}
                 </span>
-              </TooltipHelper>
-              <TooltipHelper content="Windows">
-                <span
-                  className={cn(
-                    'inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border bg-surface-overlay px-1 text-[10px]',
-                    isAttached && hasUnreadActivity
-                      ? 'border-warning/50 bg-warning/15 text-warning-foreground'
-                      : 'border-border-subtle text-secondary-foreground',
-                  )}
-                  aria-label={
-                    session.windows === 1
-                      ? '1 window'
-                      : `${session.windows} windows`
-                  }
-                >
-                  <LayoutGrid className="h-2.5 w-2.5" />
-                  {session.windows}
-                </span>
-              </TooltipHelper>
-              <TooltipHelper content="Panes">
-                <span
-                  className="inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border border-border-subtle bg-surface-overlay px-1 text-[10px] text-secondary-foreground"
-                  aria-label={
-                    session.panes === 1 ? '1 pane' : `${session.panes} panes`
-                  }
-                >
-                  <Rows3 className="h-2.5 w-2.5" />
-                  {session.panes}
-                </span>
-              </TooltipHelper>
-              {isAttached && (
-                <TooltipHelper content="Attached clients">
-                  <span
-                    className="inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border border-primary/40 bg-primary/15 px-1 text-[10px] text-primary-text"
-                    aria-label={
-                      attachedClients === 1
-                        ? '1 client attached'
-                        : `${attachedClients} clients attached`
-                    }
-                  >
-                    <User className="h-2.5 w-2.5" />
-                    {attachedClients}
-                  </span>
-                </TooltipHelper>
-              )}
-            </div>
-
-            {/* Line 2: Content preview (2 lines max, reserved height) */}
-            {!compact && (
-              <div
-                className={cn(
-                  'my-1 line-clamp-2 min-h-[2lh] max-w-full overflow-hidden break-all [overflow-wrap:anywhere] text-[10px] leading-[1.4] italic',
-                  isAttached && hasUnreadActivity
-                    ? 'text-secondary-foreground'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {session.lastContent || '\u00A0'}
-              </div>
-            )}
-
-            {/* Line 3: hash — windows/panes — time */}
-            <div
-              className={cn(
-                'flex items-center justify-between',
-                !compact && 'mt-1',
-              )}
-            >
-              {session.hash && (
-                <TooltipHelper content={`Hash: ${session.hash}`}>
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                    {shortHash}
-                  </span>
-                </TooltipHelper>
-              )}
-              <TooltipHelper content={`Last activity: ${activityAbsolute}`}>
-                <time
-                  className="shrink-0 tabular-nums text-[10px] text-muted-foreground"
-                  dateTime={session.activityAt}
-                >
+                <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">
                   {activityRelative}
-                </time>
-              </TooltipHelper>
-            </div>
+                </span>
+              </div>
+            ) : (
+              <>
+                {/* Line 1: Icon + Name + Badges */}
+                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                  <SessionIcon
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      !isAttached && 'text-muted-foreground',
+                    )}
+                  />
+                  <TooltipHelper content={`Created: ${createdAbsolute}`}>
+                    <span
+                      className={cn(
+                        'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                        !isAttached && 'text-muted-foreground',
+                      )}
+                    >
+                      {session.name}
+                    </span>
+                  </TooltipHelper>
+                  <TooltipHelper content="Windows">
+                    <span
+                      className={cn(
+                        'inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border bg-surface-overlay px-1 text-[10px]',
+                        isAttached && hasUnreadActivity
+                          ? 'border-warning/50 bg-warning/15 text-warning-foreground'
+                          : 'border-border-subtle text-secondary-foreground',
+                      )}
+                      aria-label={
+                        session.windows === 1
+                          ? '1 window'
+                          : `${session.windows} windows`
+                      }
+                    >
+                      <LayoutGrid className="h-2.5 w-2.5" />
+                      {session.windows}
+                    </span>
+                  </TooltipHelper>
+                  <TooltipHelper content="Panes">
+                    <span
+                      className="inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border border-border-subtle bg-surface-overlay px-1 text-[10px] text-secondary-foreground"
+                      aria-label={
+                        session.panes === 1
+                          ? '1 pane'
+                          : `${session.panes} panes`
+                      }
+                    >
+                      <Rows3 className="h-2.5 w-2.5" />
+                      {session.panes}
+                    </span>
+                  </TooltipHelper>
+                  {isAttached && (
+                    <TooltipHelper content="Attached clients">
+                      <span
+                        className="inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border border-primary/40 bg-primary/15 px-1 text-[10px] text-primary-text"
+                        aria-label={
+                          attachedClients === 1
+                            ? '1 client attached'
+                            : `${attachedClients} clients attached`
+                        }
+                      >
+                        <User className="h-2.5 w-2.5" />
+                        {attachedClients}
+                      </span>
+                    </TooltipHelper>
+                  )}
+                </div>
+
+                {/* Line 2: Content preview (full density only) */}
+                {density === 'full' && (
+                  <div
+                    className={cn(
+                      'my-1 line-clamp-2 min-h-[2lh] max-w-full overflow-hidden break-all [overflow-wrap:anywhere] text-[10px] leading-[1.4] italic',
+                      isAttached && hasUnreadActivity
+                        ? 'text-secondary-foreground'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    {session.lastContent || '\u00A0'}
+                  </div>
+                )}
+
+                {/* Line 3: hash + time */}
+                <div
+                  className={cn(
+                    'flex items-center justify-between',
+                    density === 'full' && 'mt-1',
+                  )}
+                >
+                  {session.hash && (
+                    <TooltipHelper content={`Hash: ${session.hash}`}>
+                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                        {shortHash}
+                      </span>
+                    </TooltipHelper>
+                  )}
+                  <TooltipHelper content={`Last activity: ${activityAbsolute}`}>
+                    <time
+                      className="shrink-0 tabular-nums text-[10px] text-muted-foreground"
+                      dateTime={session.activityAt}
+                    >
+                      {activityRelative}
+                    </time>
+                  </TooltipHelper>
+                </div>
+              </>
+            )}
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">

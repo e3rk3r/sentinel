@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SessionListItem from './SessionListItem'
+import type { SidebarDensity } from '@/contexts/LayoutContext'
 import type { Session, SessionPreset } from '@/types'
 import { hapticFeedback } from '@/lib/device'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -28,7 +29,7 @@ type PinnedSessionsPanelProps = {
   openTabs: Array<string>
   activeSession: string
   tmuxUnavailable: boolean
-  compactCards?: boolean
+  density?: SidebarDensity
   onAttach: (session: string) => void
   onRename: (session: string) => void
   onDetach: (session: string) => void
@@ -106,7 +107,7 @@ export default function PinnedSessionsPanel({
   openTabs,
   activeSession,
   tmuxUnavailable,
-  compactCards = false,
+  density = 'compact',
   onAttach,
   onRename,
   onDetach,
@@ -188,7 +189,7 @@ export default function PinnedSessionsPanel({
                     onPinSession={onPinSession}
                     onUnpinSession={onUnpinSession}
                     canDetach={openTabsSet.has(session.name)}
-                    compact={compactCards}
+                    density={density}
                     dragEnabled={dragEnabled}
                   />
                 )

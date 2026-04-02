@@ -7,7 +7,7 @@ import SessionSidebar from './SessionSidebar'
 
 const { useLayoutContextMock } = vi.hoisted(() => ({
   useLayoutContextMock: vi.fn(() => ({
-    sidebarCompact: false,
+    sidebarDensity: 'full',
   })),
 }))
 
@@ -24,20 +24,20 @@ vi.mock('./sidebar/SessionControls', () => ({
 }))
 
 vi.mock('./sidebar/PinnedSessionsPanel', () => ({
-  default: ({ compactCards }: { compactCards?: boolean }) => (
-    <div>{compactCards ? 'Pinned Compact' : 'Pinned'}</div>
+  default: ({ density }: { density?: string }) => (
+    <div>{density === 'minimal' ? 'Pinned Minimal' : 'Pinned'}</div>
   ),
 }))
 
 vi.mock('./sidebar/SessionListPanel', () => ({
-  default: ({ compactCards }: { compactCards?: boolean }) => (
-    <div>{compactCards ? 'Session List Compact' : 'Session List'}</div>
+  default: ({ density }: { density?: string }) => (
+    <div>{density === 'minimal' ? 'Session List Minimal' : 'Session List'}</div>
   ),
 }))
 
 afterEach(() => {
   cleanup()
-  useLayoutContextMock.mockReturnValue({ sidebarCompact: false })
+  useLayoutContextMock.mockReturnValue({ sidebarDensity: 'full' })
 })
 
 const baseProps = {
@@ -132,9 +132,9 @@ describe('SessionSidebar', () => {
     expect(screen.getByText('Session List')).toBeTruthy()
   })
 
-  it('forwards compact card mode when the sidebar enters compact width', async () => {
+  it('forwards minimal density when the sidebar is narrowest', async () => {
     useLayoutContextMock.mockReturnValue({
-      sidebarCompact: true,
+      sidebarDensity: 'minimal',
     })
 
     render(
@@ -158,8 +158,8 @@ describe('SessionSidebar', () => {
       />,
     )
 
-    expect(screen.getByText('Pinned Compact')).toBeTruthy()
-    expect(screen.getByText('Session List Compact')).toBeTruthy()
+    expect(screen.getByText('Pinned Minimal')).toBeTruthy()
+    expect(screen.getByText('Session List Minimal')).toBeTruthy()
   })
 
   it('lets the session sidebar own scrolling on desktop', () => {

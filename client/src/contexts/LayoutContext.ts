@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react'
 
+export type SidebarDensity = 'minimal' | 'compact' | 'full'
+
 type LayoutContextValue = {
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean | ((prev: boolean) => boolean)) => void
@@ -8,7 +10,7 @@ type LayoutContextValue = {
   setSidebarCollapsed: (
     collapsed: boolean | ((prev: boolean) => boolean),
   ) => void
-  sidebarCompact: boolean
+  sidebarDensity: SidebarDensity
   settingsOpen: boolean
   setSettingsOpen: (open: boolean | ((prev: boolean) => boolean)) => void
   shellStyle: CSSProperties

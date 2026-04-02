@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import type { SidebarDensity } from '@/contexts/LayoutContext'
 
 type UseShellLayoutOptions = {
   storageKey: string
   defaultSidebarWidth: number
   minSidebarWidth: number
   maxSidebarWidth: number
-  compactSidebarWidth: number
   onResizeEnd?: () => void
 }
 
@@ -16,7 +16,6 @@ export function useShellLayout({
   defaultSidebarWidth,
   minSidebarWidth,
   maxSidebarWidth,
-  compactSidebarWidth,
   onResizeEnd,
 }: UseShellLayoutOptions) {
   const isMobile = useIsMobileLayout()
@@ -68,8 +67,13 @@ export function useShellLayout({
     [sidebarCollapsed, sidebarWidth],
   )
 
-  const sidebarCompact =
-    !sidebarCollapsed && sidebarWidth <= compactSidebarWidth
+  const sidebarDensity: SidebarDensity = sidebarCollapsed
+    ? 'full'
+    : sidebarWidth <= 280
+      ? 'minimal'
+      : sidebarWidth <= 360
+        ? 'compact'
+        : 'full'
 
   const layoutGridClass = useMemo(
     () =>
@@ -124,7 +128,7 @@ export function useShellLayout({
     setSidebarOpen,
     sidebarCollapsed,
     setSidebarCollapsed,
-    sidebarCompact,
+    sidebarDensity,
     settingsOpen,
     setSettingsOpen,
     shellStyle,

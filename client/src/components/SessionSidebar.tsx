@@ -61,7 +61,7 @@ export default function SessionSidebar({
   onKill,
   onChangeIcon,
 }: SessionSidebarProps) {
-  const { sidebarCompact } = useLayoutContext()
+  const { sidebarDensity } = useLayoutContext()
   const pinnedNames = useMemo(
     () => new Set(presets.map((preset) => preset.name)),
     [presets],
@@ -108,7 +108,7 @@ export default function SessionSidebar({
           onUnpinSession={onUnpinSession}
           onLaunchPreset={onLaunchPreset}
           onReorder={onReorderPinned}
-          compactCards={sidebarCompact}
+          density={sidebarDensity}
         />
 
         {!shouldHideRegularPanel && (
@@ -128,7 +128,7 @@ export default function SessionSidebar({
             onPinSession={onPinSession}
             onUnpinSession={onUnpinSession}
             onReorder={onReorderSession}
-            compactCards={sidebarCompact}
+            density={sidebarDensity}
           />
         )}
       </div>

@@ -189,14 +189,14 @@ describe('SessionListItem', () => {
     expect(onUnpinSession).toHaveBeenCalledWith('api')
   })
 
-  it('hides the content preview when rendered in compact mode', () => {
+  it('hides the content preview when rendered in compact density', () => {
     render(
       <SortableTestShell>
         <SessionListItem
           session={baseSession}
           isActive={false}
           isPinned={false}
-          compact
+          density="compact"
           onAttach={() => {}}
           onRename={() => {}}
           onDetach={() => {}}
@@ -211,6 +211,33 @@ describe('SessionListItem', () => {
 
     expect(screen.queryByText('ready')).toBeNull()
     expect(screen.getByText('abc…456')).toBeTruthy()
+  })
+
+  it('shows only icon, name, and time in minimal density', () => {
+    render(
+      <SortableTestShell>
+        <SessionListItem
+          session={baseSession}
+          isActive={false}
+          isPinned={false}
+          density="minimal"
+          onAttach={() => {}}
+          onRename={() => {}}
+          onDetach={() => {}}
+          onKill={() => {}}
+          onChangeIcon={() => {}}
+          onPinSession={() => {}}
+          onUnpinSession={() => {}}
+          canDetach={false}
+        />
+      </SortableTestShell>,
+    )
+
+    expect(screen.getByText('api')).toBeTruthy()
+    expect(screen.queryByText('ready')).toBeNull()
+    expect(screen.queryByText('abc…456')).toBeNull()
+    expect(screen.queryByLabelText(/window/i)).toBeNull()
+    expect(screen.queryByLabelText(/pane/i)).toBeNull()
   })
 
   it('uses touch pan-y when drag is disabled', () => {
