@@ -73,6 +73,10 @@ function normalizeTmuxLauncher(
       ? cwdMode
       : 'session'
 
+  const userMode = rawLauncher.userMode
+  const normalizedUserMode =
+    userMode === 'session' || userMode === 'fixed' ? userMode : 'session'
+
   return {
     id,
     name: asText(rawLauncher.name),
@@ -81,6 +85,8 @@ function normalizeTmuxLauncher(
     cwdMode: normalizedCwdMode,
     cwdValue: asText(rawLauncher.cwdValue),
     windowName: asText(rawLauncher.windowName),
+    userMode: normalizedUserMode,
+    userValue: asText(rawLauncher.userValue),
     sortOrder:
       typeof rawLauncher.sortOrder === 'number' &&
       Number.isFinite(rawLauncher.sortOrder)
