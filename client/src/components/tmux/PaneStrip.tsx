@@ -122,7 +122,7 @@ export default function PaneStrip({
           (paneInfo) => paneInfo.windowIndex === activeWindowIndex,
         )
   const stripClass =
-    'flex min-h-[24px] items-center gap-1.5 overflow-x-auto overflow-y-hidden'
+    'no-scrollbar flex min-h-[24px] items-center gap-1.5 overflow-x-auto overflow-y-hidden'
   const hasRenderablePanes = visiblePanes.length > 0
 
   useEffect(() => {
