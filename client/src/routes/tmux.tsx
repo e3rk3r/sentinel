@@ -681,28 +681,30 @@ function TmuxPage() {
   })
 
   // ---- Events socket hook ----
-  const { syncActivityDelta } = useTmuxEventsSocket({
-    api,
-    authenticated,
-    tokenRequired,
-    setToken,
-    presenceSocketRef,
-    tabsStateRef,
-    eventsSocketConnectedRef,
-    runtimeMetricsRef,
-    lastSessionsRefreshAtRef: sessionCRUD.lastSessionsRefreshAtRef,
-    sendPresenceOverWS: presence.sendPresenceOverWS,
-    refreshSessions: sessionCRUD.refreshSessions,
-    refreshInspector: inspector.refreshInspector,
-    pushErrorToast,
-    applySessionActivityPatches: inspector.applySessionActivityPatches,
-    applyInspectorProjectionPatches: inspector.applyInspectorProjectionPatches,
-    settlePendingSeenAcks: seen.settlePendingSeenAcks,
-    seenAckWaitersRef: seen.seenAckWaitersRef,
-    timelineOpenRef: timeline.timelineOpenRef,
-    timelineSessionFilterRef: timeline.timelineSessionFilterRef,
-    loadTimelineRef: timeline.loadTimelineRef,
-  })
+  const { syncActivityDelta, forceReconnect: forceReconnectEvents } =
+    useTmuxEventsSocket({
+      api,
+      authenticated,
+      tokenRequired,
+      setToken,
+      presenceSocketRef,
+      tabsStateRef,
+      eventsSocketConnectedRef,
+      runtimeMetricsRef,
+      lastSessionsRefreshAtRef: sessionCRUD.lastSessionsRefreshAtRef,
+      sendPresenceOverWS: presence.sendPresenceOverWS,
+      refreshSessions: sessionCRUD.refreshSessions,
+      refreshInspector: inspector.refreshInspector,
+      pushErrorToast,
+      applySessionActivityPatches: inspector.applySessionActivityPatches,
+      applyInspectorProjectionPatches:
+        inspector.applyInspectorProjectionPatches,
+      settlePendingSeenAcks: seen.settlePendingSeenAcks,
+      seenAckWaitersRef: seen.seenAckWaitersRef,
+      timelineOpenRef: timeline.timelineOpenRef,
+      timelineSessionFilterRef: timeline.timelineSessionFilterRef,
+      loadTimelineRef: timeline.loadTimelineRef,
+    })
 
   // ---- Resync handler ----
   const handleResync = useCallback(() => {
@@ -712,13 +714,15 @@ function TmuxPage() {
     void sessionCRUD.refreshSessions()
     void inspector.refreshInspector(active)
     void syncActivityDelta({ reason: 'manual-resync', force: true })
-    reconnectActiveSession()
+    forceReconnectEvents()
+    reconnectActiveSession({ force: true })
     pushSuccessToast('Resync', 'Session state refreshed')
   }, [
     tabsState.activeSession,
     inspector,
     sessionCRUD,
     syncActivityDelta,
+    forceReconnectEvents,
     reconnectActiveSession,
     pushSuccessToast,
   ])

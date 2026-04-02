@@ -99,7 +99,7 @@ type UseTerminalTmuxResult = {
   focusTerminal: () => void
   zoomIn: () => void
   zoomOut: () => void
-  reconnectActiveSession: () => void
+  reconnectActiveSession: (options?: { force?: boolean }) => void
 }
 
 export function useTerminalTmux({
@@ -1026,6 +1026,22 @@ export function useTerminalTmux({
   }, [fitRuntime])
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      const sessionName = activeSessionRef.current.trim()
+      if (sessionName === '') return
+      const runtime = runtimesRef.current.get(sessionName)
+      if (!runtime) return
+      if (runtime.socket?.readyState === WebSocket.OPEN) return
+      runtime.reconnect.reset()
+      connectRuntime(runtime, { resetTerminal: false })
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [connectRuntime])
+
+  useEffect(() => {
     const rafId = window.requestAnimationFrame(() => {
       fitTerminal()
     })
@@ -1046,14 +1062,19 @@ export function useTerminalTmux({
     }
   }, [disposeRuntime])
 
-  const reconnectActiveSession = useCallback(() => {
-    const sessionName = activeSessionRef.current.trim()
-    if (sessionName === '') return
-    const runtime = runtimesRef.current.get(sessionName)
-    if (!runtime) return
-    if (runtime.socket?.readyState === WebSocket.OPEN) return
-    connectRuntime(runtime, { resetTerminal: false })
-  }, [connectRuntime])
+  const reconnectActiveSession = useCallback(
+    (options?: { force?: boolean }) => {
+      const sessionName = activeSessionRef.current.trim()
+      if (sessionName === '') return
+      const runtime = runtimesRef.current.get(sessionName)
+      if (!runtime) return
+      if (!options?.force && runtime.socket?.readyState === WebSocket.OPEN)
+        return
+      runtime.reconnect.reset()
+      connectRuntime(runtime, { resetTerminal: false })
+    },
+    [connectRuntime],
+  )
 
   return {
     getTerminalHostRef,

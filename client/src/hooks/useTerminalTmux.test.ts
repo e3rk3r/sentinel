@@ -552,6 +552,175 @@ describe('useTerminalTmux – auto-reconnect', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// reconnectActiveSession – force parameter
+// ---------------------------------------------------------------------------
+
+describe('useTerminalTmux – reconnectActiveSession force', () => {
+  beforeEach(() => {
+    setupEnvironment()
+  })
+
+  afterEach(() => {
+    globalThis.WebSocket = originalWebSocket
+  })
+
+  it('reconnectActiveSession() without force skips when socket is OPEN', () => {
+    const { result } = renderTerminalHook()
+    connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      result.current.reconnectActiveSession()
+    })
+
+    // No new WebSocket — the OPEN guard prevented reconnection.
+    expect(MockWebSocket.instances.length).toBe(countBefore)
+    expect(result.current.connectionState).toBe('connected')
+  })
+
+  it('reconnectActiveSession({ force: true }) reconnects even when socket is OPEN', () => {
+    const { result } = renderTerminalHook()
+    connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      result.current.reconnectActiveSession({ force: true })
+    })
+
+    // A new WebSocket was created despite the old one being OPEN.
+    expect(MockWebSocket.instances.length).toBe(countBefore + 1)
+    expect(result.current.connectionState).toBe('connecting')
+  })
+
+  it('reconnectActiveSession resets backoff before connecting', () => {
+    vi.useFakeTimers()
+    const { result } = renderTerminalHook()
+    connectSession()
+
+    // Trigger unexpected close to advance the backoff
+    act(() => {
+      latestWS().emitClose()
+    })
+    // Advance timer to trigger first reconnect
+    act(() => {
+      vi.advanceTimersByTime(1_200)
+    })
+    // Close again to advance backoff further
+    act(() => {
+      latestWS().emitClose()
+    })
+
+    // Now backoff is at 2040ms (second level).
+    // Call reconnectActiveSession — it should reset the backoff.
+    act(() => {
+      result.current.reconnectActiveSession()
+    })
+
+    // Connect successfully
+    connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    // Close unexpectedly again — backoff should be at initial level
+    // because reconnectActiveSession reset it, and onopen reset it again.
+    act(() => {
+      latestWS().emitClose()
+    })
+    expect(result.current.statusDetail).toBe('reconnecting in 2s') // ceil(1200/1000)
+
+    vi.useRealTimers()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// visibilitychange reconnection
+// ---------------------------------------------------------------------------
+
+describe('useTerminalTmux – visibilitychange reconnection', () => {
+  beforeEach(() => {
+    setupEnvironment()
+  })
+
+  afterEach(() => {
+    globalThis.WebSocket = originalWebSocket
+  })
+
+  it('reconnects when document becomes visible and socket is not OPEN', () => {
+    const { result } = renderTerminalHook()
+    const ws = connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    // Simulate zombie socket: force readyState to CLOSED without triggering
+    // the onclose handler (mimics TCP-dead scenario).
+    Object.defineProperty(ws, 'readyState', { value: 3 }) // WebSocket.CLOSED
+
+    // Simulate returning to the tab
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        writable: true,
+        configurable: true,
+      })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    // A new WebSocket should have been created — the hook reconnected.
+    const lastWS = latestWS()
+    expect(lastWS).not.toBe(ws)
+    expect(lastWS.url).toContain('session=test-session')
+    expect(result.current.connectionState).toBe('connecting')
+  })
+
+  it('does not reconnect on visibilitychange when socket is OPEN', () => {
+    const { result } = renderTerminalHook()
+    connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        writable: true,
+        configurable: true,
+      })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    // No new WebSocket — already connected.
+    expect(MockWebSocket.instances.length).toBe(countBefore)
+  })
+
+  it('ignores visibilitychange when document becomes hidden', () => {
+    const { result } = renderTerminalHook()
+    const ws = connectSession()
+    expect(result.current.connectionState).toBe('connected')
+
+    Object.defineProperty(ws, 'readyState', { value: WebSocket.CLOSED })
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        writable: true,
+        configurable: true,
+      })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    // No reconnection on hidden.
+    expect(MockWebSocket.instances.length).toBe(countBefore)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Terminal chrome
+// ---------------------------------------------------------------------------
+
 describe('useTerminalTmux – terminal chrome', () => {
   beforeEach(() => {
     setupEnvironment()

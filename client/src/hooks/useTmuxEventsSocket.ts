@@ -73,11 +73,14 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
   } = options
 
   const [eventsSocketConnected, setEventsSocketConnected] = useState(false)
+  const [reconnectEpoch, setReconnectEpoch] = useState(0)
   const lastGlobalRevRef = useRef(0)
   const lastEventIDRef = useRef(0)
   const lastDeltaSyncAtRef = useRef(0)
   const deltaSyncInFlightRef = useRef(false)
   const wsReconnectAttemptsRef = useRef(0)
+  const socketRef = useRef<WebSocket | null>(null)
+  const retryTimerRef = useRef<number>(0)
   const refreshTimerRef = useRef<{
     sessions: number | null
     inspector: number | null
@@ -243,9 +246,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
       return
     }
 
-    let reconnectTimer: number | null = null
     let closed = false
-    let socket: WebSocket | null = null
 
     const parseEventID = (value: unknown): number => {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
@@ -293,10 +294,11 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
 
     const connect = () => {
       const wsURL = new URL('/ws/events', window.location.origin)
-      socket = new WebSocket(
+      const socket = new WebSocket(
         wsURL.toString().replace(/^http/, 'ws'),
         buildWSProtocols(),
       )
+      socketRef.current = socket
 
       socket.onopen = () => {
         runtimeMetricsRef.current.wsOpenCount += 1
@@ -468,13 +470,14 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
       }
 
       socket.onerror = () => {
-        socket?.close()
+        socket.close()
       }
 
       socket.onclose = () => {
         runtimeMetricsRef.current.wsCloseCount += 1
         settlePendingSeenAcks(false)
         presenceSocketRef.current = null
+        socketRef.current = null
         setEventsSocketConnected(false)
         if (closed) return
         wsReconnectAttemptsRef.current += 1
@@ -483,7 +486,8 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
         const expo = Math.min(8, attempt)
         const baseDelay = Math.min(10_000, 500 * 2 ** expo)
         const jitter = Math.floor(Math.random() * 300)
-        reconnectTimer = window.setTimeout(() => {
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = 0
           connect()
         }, baseDelay + jitter)
       }
@@ -496,8 +500,9 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
       settlePendingSeenAcks(false)
       presenceSocketRef.current = null
       setEventsSocketConnected(false)
-      if (reconnectTimer !== null) {
-        window.clearTimeout(reconnectTimer)
+      if (retryTimerRef.current !== 0) {
+        window.clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = 0
       }
       for (const key of ['sessions', 'inspector', 'timeline'] as const) {
         const id = refreshTimerRef.current[key]
@@ -506,8 +511,10 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
           refreshTimerRef.current[key] = null
         }
       }
-      if (socket !== null) {
-        socket.close()
+      const sock = socketRef.current
+      socketRef.current = null
+      if (sock !== null) {
+        sock.close()
       }
     }
   }, [
@@ -517,6 +524,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     loadTimelineRef,
     presenceSocketRef,
     pushErrorToast,
+    reconnectEpoch,
     refreshInspector,
     refreshSessions,
     runtimeMetricsRef,
@@ -532,8 +540,26 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
     tokenRequired,
   ])
 
+  const forceReconnect = useCallback(() => {
+    // Clear any pending retry timer
+    window.clearTimeout(retryTimerRef.current)
+    retryTimerRef.current = 0
+    // Reset backoff
+    wsReconnectAttemptsRef.current = 0
+    // Close current socket if open
+    if (socketRef.current) {
+      const sock = socketRef.current
+      socketRef.current = null
+      sock.onclose = null // prevent onclose from scheduling another retry
+      sock.close()
+    }
+    // Bump epoch to trigger the effect to re-run and establish a new connection
+    setReconnectEpoch((prev) => prev + 1)
+  }, [])
+
   return {
     eventsSocketConnected,
     syncActivityDelta,
+    forceReconnect,
   }
 }

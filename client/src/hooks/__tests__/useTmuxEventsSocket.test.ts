@@ -1938,7 +1938,174 @@ describe('useTmuxEventsSocket', () => {
   })
 
   // -------------------------------------------------------------------------
-  // 10. Runtime metrics exposure
+  // 10. Force reconnect
+  // -------------------------------------------------------------------------
+
+  describe('forceReconnect', () => {
+    it('returns forceReconnect function from the hook', () => {
+      const opts = makeOptions()
+      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+
+      expect(typeof result.current.forceReconnect).toBe('function')
+    })
+
+    it('closes current socket and opens a new one', () => {
+      const opts = makeOptions()
+      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+
+      const firstSocket = lastSocket()
+      act(() => {
+        firstSocket.emitOpen()
+      })
+      expect(result.current.eventsSocketConnected).toBe(true)
+
+      const instancesBefore = MockWebSocket.instances.length
+
+      act(() => {
+        result.current.forceReconnect()
+      })
+
+      expect(firstSocket.closed).toBe(true)
+      expect(MockWebSocket.instances.length).toBeGreaterThan(instancesBefore)
+    })
+
+    it('resets reconnect attempt counter', () => {
+      const timeoutSpy = vi.spyOn(window, 'setTimeout')
+      const opts = makeOptions()
+      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+
+      act(() => {
+        lastSocket().emitOpen()
+      })
+
+      // Build up reconnect attempts via successive closes
+      act(() => {
+        lastSocket().emitClose()
+        vi.advanceTimersByTime(1_300)
+      })
+      act(() => {
+        lastSocket().emitClose()
+        vi.advanceTimersByTime(2_500)
+      })
+      act(() => {
+        lastSocket().emitClose()
+        vi.advanceTimersByTime(4_500)
+      })
+
+      // Force reconnect should reset the counter
+      act(() => {
+        result.current.forceReconnect()
+      })
+
+      // The new socket opens, then closes — delay should be attempt=1 level
+      act(() => {
+        lastSocket().emitOpen()
+        lastSocket().emitClose()
+      })
+
+      const lastCall = timeoutSpy.mock.calls[timeoutSpy.mock.calls.length - 1]
+      const delay = lastCall[1] as number
+
+      // attempt=1: base = min(10000, 500*2^1) = 1000, jitter 0..299
+      expect(delay).toBeGreaterThanOrEqual(1000)
+      expect(delay).toBeLessThanOrEqual(1299)
+    })
+
+    it('cancels pending retry timer before reconnecting', () => {
+      const opts = makeOptions()
+      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+
+      act(() => {
+        lastSocket().emitOpen()
+      })
+
+      // Trigger a close which schedules a retry timer
+      act(() => {
+        lastSocket().emitClose()
+      })
+
+      const instancesBeforeForce = MockWebSocket.instances.length
+
+      // Force reconnect before the retry timer fires
+      act(() => {
+        result.current.forceReconnect()
+      })
+
+      // The force reconnect should have created exactly one new socket
+      // (not two — the pending retry should have been cancelled)
+      const instancesAfterForce = MockWebSocket.instances.length
+      expect(instancesAfterForce).toBe(instancesBeforeForce + 1)
+
+      // Advance past what would have been the retry timer
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+
+      // No additional sockets should have been created from the cancelled timer
+      expect(MockWebSocket.instances.length).toBe(instancesAfterForce)
+    })
+
+    it('works when called with no active socket', () => {
+      const opts = makeOptions({
+        authenticated: false,
+        tokenRequired: true,
+      })
+      const { result, rerender } = renderHook(
+        (props: { authenticated: boolean }) =>
+          useTmuxEventsSocket({
+            ...opts,
+            authenticated: props.authenticated,
+          }),
+        { initialProps: { authenticated: false } },
+      )
+
+      // No socket exists
+      expect(MockWebSocket.instances).toHaveLength(0)
+
+      // Enable authentication so that the effect will connect
+      rerender({ authenticated: true })
+
+      const instancesBefore = MockWebSocket.instances.length
+      expect(instancesBefore).toBeGreaterThanOrEqual(1)
+
+      // Force reconnect
+      act(() => {
+        result.current.forceReconnect()
+      })
+
+      expect(MockWebSocket.instances.length).toBeGreaterThan(instancesBefore)
+    })
+
+    it('prevents onclose handler from scheduling a retry after force close', () => {
+      const opts = makeOptions()
+      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+
+      act(() => {
+        lastSocket().emitOpen()
+      })
+
+      const socketBeforeForce = lastSocket()
+
+      act(() => {
+        result.current.forceReconnect()
+      })
+
+      const instancesAfterForce = MockWebSocket.instances.length
+
+      // Manually fire onclose on the old socket — it should be nulled out
+      // by forceReconnect so this should not trigger another reconnect
+      expect(socketBeforeForce.onclose).toBeNull()
+
+      // No extra sockets created
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+      expect(MockWebSocket.instances.length).toBe(instancesAfterForce)
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // 11. Runtime metrics exposure
   // -------------------------------------------------------------------------
 
   describe('runtime metrics', () => {
