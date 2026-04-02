@@ -138,13 +138,15 @@ export default function SessionListItem({
                   <SessionIcon
                     className={cn(
                       'h-3 w-3 shrink-0',
-                      !isAttached && 'text-muted-foreground',
+                      isAttached && hasUnreadActivity
+                        ? 'text-amber-400'
+                        : !isAttached && 'text-muted-foreground',
                     )}
                   />
                 </TooltipHelper>
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate text-[11px] font-medium',
+                    'min-w-0 flex-1 truncate text-[11px]',
                     !isAttached && 'text-muted-foreground',
                   )}
                 >
@@ -162,13 +164,15 @@ export default function SessionListItem({
                     <SessionIcon
                       className={cn(
                         'h-3.5 w-3.5 shrink-0',
-                        !isAttached && 'text-muted-foreground',
+                        isAttached && hasUnreadActivity
+                          ? 'text-amber-400'
+                          : !isAttached && 'text-muted-foreground',
                       )}
                     />
                   </TooltipHelper>
                   <span
                     className={cn(
-                      'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                      'min-w-0 flex-1 truncate text-[12px]',
                       !isAttached && 'text-muted-foreground',
                     )}
                   >
@@ -176,12 +180,7 @@ export default function SessionListItem({
                   </span>
                   <TooltipHelper content="Windows">
                     <span
-                      className={cn(
-                        'inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border bg-surface-overlay px-1 text-[10px]',
-                        isAttached && hasUnreadActivity
-                          ? 'border-warning/50 bg-warning/15 text-warning-foreground'
-                          : 'border-border-subtle text-secondary-foreground',
-                      )}
+                      className="inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full border border-border-subtle bg-surface-overlay px-1 text-[10px] text-secondary-foreground"
                       aria-label={
                         session.windows === 1
                           ? '1 window'
