@@ -78,6 +78,19 @@ export default function SessionListItem({
 
   const SessionIcon = getTmuxIcon(session.icon)
 
+  const iconTooltipLines = [
+    session.name,
+    session.user && session.user !== processUser ? `user: ${session.user}` : '',
+    `created: ${createdAbsolute}`,
+    `activity: ${activityAbsolute}`,
+    `${session.windows} window${session.windows !== 1 ? 's' : ''}, ${session.panes} pane${session.panes !== 1 ? 's' : ''}`,
+    isAttached
+      ? `${attachedClients} client${attachedClients !== 1 ? 's' : ''} attached`
+      : 'detached',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
   const shortHash =
     session.hash.length > 7
       ? session.hash.slice(0, 3) + '\u2026' + session.hash.slice(-3)
@@ -121,12 +134,14 @@ export default function SessionListItem({
             {density === 'minimal' ? (
               /* Minimal: single row — icon, name, relative time */
               <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                <SessionIcon
-                  className={cn(
-                    'h-3 w-3 shrink-0',
-                    !isAttached && 'text-muted-foreground',
-                  )}
-                />
+                <TooltipHelper content={iconTooltipLines}>
+                  <SessionIcon
+                    className={cn(
+                      'h-3 w-3 shrink-0',
+                      !isAttached && 'text-muted-foreground',
+                    )}
+                  />
+                </TooltipHelper>
                 <span
                   className={cn(
                     'min-w-0 flex-1 truncate text-[11px] font-medium',
@@ -143,22 +158,22 @@ export default function SessionListItem({
               <>
                 {/* Line 1: Icon + Name + Badges */}
                 <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                  <SessionIcon
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0',
-                      !isAttached && 'text-muted-foreground',
-                    )}
-                  />
-                  <TooltipHelper content={`Created: ${createdAbsolute}`}>
-                    <span
+                  <TooltipHelper content={iconTooltipLines}>
+                    <SessionIcon
                       className={cn(
-                        'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                        'h-3.5 w-3.5 shrink-0',
                         !isAttached && 'text-muted-foreground',
                       )}
-                    >
-                      {session.name}
-                    </span>
+                    />
                   </TooltipHelper>
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 truncate text-[12px] font-semibold',
+                      !isAttached && 'text-muted-foreground',
+                    )}
+                  >
+                    {session.name}
+                  </span>
                   <TooltipHelper content="Windows">
                     <span
                       className={cn(

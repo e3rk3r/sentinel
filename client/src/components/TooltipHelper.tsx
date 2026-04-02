@@ -20,7 +20,12 @@ export function TooltipHelper({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side}>{content}</TooltipContent>
+      <TooltipContent
+        side={side}
+        className={content.includes('\n') ? 'whitespace-pre-line' : undefined}
+      >
+        {content}
+      </TooltipContent>
     </Tooltip>
   )
 }
