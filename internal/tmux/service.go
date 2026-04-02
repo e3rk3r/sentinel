@@ -25,7 +25,7 @@ func runAsUser(ctx context.Context, user string, args ...string) (string, error)
 	}
 	sudoArgs := []string{"-n", "-u", user, "tmux"}
 	sudoArgs = append(sudoArgs, args...)
-	cmd := exec.CommandContext(ctx, "sudo", sudoArgs...)
+	cmd := exec.CommandContext(ctx, "sudo", sudoArgs...) //nolint:gosec // G702: user is validated against an allowlist in security.ValidateTargetUser before reaching this point
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
