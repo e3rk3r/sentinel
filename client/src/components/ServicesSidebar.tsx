@@ -77,7 +77,7 @@ export default function ServicesSidebar({
         <section className="grid gap-2 rounded-lg border border-border-subtle bg-secondary p-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-secondary-foreground">
-              Tracked Services
+              Services
             </span>
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border px-1.5 text-[11px] text-secondary-foreground">
               {services.length}
@@ -120,17 +120,8 @@ export default function ServicesSidebar({
         <section className="grid min-h-0 grid-rows-[1fr] overflow-hidden rounded-lg border border-border-subtle bg-secondary">
           <ScrollArea className="h-full min-h-0">
             <div className="grid min-h-0 gap-1.5 p-2">
-              <div className="flex items-center justify-between px-1 pt-1">
-                <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                  Service Status
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {loading
-                    ? 'syncing...'
-                    : hasFilter
-                      ? `${filteredServices.length}/${services.length}`
-                      : `${services.length} tracked`}
-                </span>
+              <div className="px-1 pt-1 text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                Pinned
               </div>
               {loading && services.length === 0 && (
                 <EmptyState

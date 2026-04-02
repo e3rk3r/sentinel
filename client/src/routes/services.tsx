@@ -740,8 +740,9 @@ function ServicesPage() {
         setSvcTypeFilterTouched(false)
       }
       setSvcSearch(unit)
+      layout.setSidebarOpen(false)
     },
-    [browseServices],
+    [browseServices, layout],
   )
 
   const stats = useMemo(() => {
