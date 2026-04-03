@@ -51,7 +51,7 @@ Origin checks apply to all API routes.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/meta` | Runtime metadata (`tokenRequired`, `defaultCwd`, `version`) |
+| `GET` | `/api/meta` | Runtime metadata (`tokenRequired`, `defaultCwd`, `version`, `timezone`, `locale`, `hostname`, `processUser`, `isRoot`, `canSwitchUser`, `allowedUsers`) |
 | `GET` | `/api/fs/dirs` | Directory suggestions for session creation |
 
 `/api/fs/dirs` query params: `prefix`, `limit`.
@@ -65,13 +65,38 @@ Origin checks apply to all API routes.
 | `PATCH` | `/api/tmux/sessions/{session}` | Rename session |
 | `PATCH` | `/api/tmux/sessions/{session}/icon` | Set session icon |
 | `DELETE` | `/api/tmux/sessions/{session}` | Kill session |
+| `PATCH` | `/api/tmux/sessions/order` | Reorder pinned sessions |
 | `POST` | `/api/tmux/sessions/{session}/seen` | Mark seen scope (`pane/window/session`) |
 
 Create payload:
 
 ```json
-{ "name": "dev", "cwd": "/absolute/path" }
+{ "name": "dev", "cwd": "/absolute/path", "icon": "rocket", "user": "deploy" }
 ```
+
+`icon` and `user` are optional. On name collision the server tries `name-1` through `name-9`, so the response `name` may differ from the requested name.
+
+## Tmux Launchers
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/tmux/launchers` | List launchers |
+| `POST` | `/api/tmux/launchers` | Create launcher |
+| `PATCH` | `/api/tmux/launchers/order` | Reorder launchers |
+| `PATCH` | `/api/tmux/launchers/{launcher}` | Update launcher |
+| `DELETE` | `/api/tmux/launchers/{launcher}` | Delete launcher |
+| `POST` | `/api/tmux/sessions/{session}/launchers/{launcher}/launch` | Launch a window from launcher |
+
+## Session Presets
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/tmux/session-presets` | List session presets |
+| `POST` | `/api/tmux/session-presets` | Create session preset |
+| `PATCH` | `/api/tmux/session-presets/order` | Reorder presets |
+| `PATCH` | `/api/tmux/session-presets/{preset}` | Update preset |
+| `DELETE` | `/api/tmux/session-presets/{preset}` | Delete preset |
+| `POST` | `/api/tmux/session-presets/{preset}/launch` | Launch session from preset |
 
 ## Tmux Windows and Panes
 
@@ -301,6 +326,16 @@ Marker upsert payload:
 
 `pattern` and `enabled` are required. When `{pattern}` in the URL path is omitted, a random ID is generated.
 
+### Settings
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `PATCH` | `/api/ops/settings/timezone` | Update timezone |
+| `PATCH` | `/api/ops/settings/locale` | Update locale |
+| `GET` | `/api/ops/settings/webhook` | Get webhook configuration |
+| `PATCH` | `/api/ops/settings/webhook` | Update webhook configuration |
+| `POST` | `/api/ops/webhook/test` | Test webhook delivery |
+
 ## Operations: Storage
 
 | Method | Path | Purpose |
@@ -371,3 +406,7 @@ Restore payload (optional body):
 - `GUARDRAIL_BLOCKED`
 - `GUARDRAIL_CONFIRM_REQUIRED`
 - `RECOVERY_DISABLED`, `RECOVERY_ERROR`
+- `USER_NOT_ALLOWED` — 403 — Target user not in allowlist or system users
+- `TMUX_LAUNCHER_NOT_FOUND` — 404 — Referenced launcher does not exist
+- `TMUX_LAUNCHER_EXISTS` — 409 — Launcher with this name already exists
+- `INVALID_STATE` — 409 — Operation not valid in the current state (e.g., runbook step approve/reject)

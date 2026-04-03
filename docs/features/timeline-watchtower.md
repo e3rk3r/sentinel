@@ -12,6 +12,7 @@ Watchtower is the background projection engine that converts tmux runtime output
 - Project session/window/pane activity state into SQLite.
 - Publish compact event patches to `/ws/events`.
 - Write timeline events for operations search.
+- Discover and monitor sessions owned by other OS users via a `UserProvider` callback with a 10-second TTL cache. Multi-user session panes are namespaced with `user:paneID` to avoid primary key collisions.
 
 ## Default Runtime Settings
 
@@ -19,7 +20,7 @@ Watchtower is the background projection engine that converts tmux runtime output
 - Pane capture lines: `80`
 - Pane capture timeout: `150ms`
 - Activity journal retention: `5000` rows
-- Timeline retention: `10000` rows
+- Timeline retention: `20000` rows
 
 These values are configurable (see configuration reference).
 

@@ -34,6 +34,7 @@ Implemented improvements include:
 - Keyboard-aware viewport tracking (`visualViewport`) with CSS variables.
 - Touch lock zones using `data-sentinel-touch-lock`.
 - Keyboard-open behavior stabilization to avoid layout drift and unwanted scroll.
+- WebSocket force-reconnect on `visibilitychange` — both the events channel and PTY stream reconnect when the tab becomes visible again, ensuring state is current after returning from background.
 
 ## Deployment Notes
 

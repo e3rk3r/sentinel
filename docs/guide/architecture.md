@@ -21,6 +21,8 @@ Sentinel is a single Go binary with embedded frontend assets and a local SQLite 
 - `internal/term`: terminal abstraction and PTY lifecycle management.
 - `internal/updater`: binary self-update checks and apply logic.
 - `internal/validate`: shared input validators (session names, cron expressions, timezones).
+- `internal/config`: TOML configuration loading with environment variable overrides (`SENTINEL_*`).
+- `internal/security`: bearer token authentication and CORS origin validation.
 - `internal/daemon`: systemd/launchd service install and lifecycle management.
 - `client`: React/Vite frontend with file-based routing (TanStack Router), optimistic UX, and event-driven sync. Routes: `/tmux`, `/services`, `/ops`, `/runbooks`, `/alerts`, `/activities`, `/metrics`.
 
@@ -53,6 +55,9 @@ Sentinel is a single Go binary with embedded frontend assets and a local SQLite 
 - Marker patterns for terminal output detection
 - Ops revision tracking for delta-based broadcasts
 - Session directory frequency tracking
+- Session users registry (`session_users`)
+- Tmux launchers with user targeting (`tmux_launchers`)
+- Session presets (`session_presets`)
 
 ## Event-Driven UX Strategy
 

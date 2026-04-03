@@ -7,6 +7,7 @@
 
 - Features
   - [Tmux Workspace](/features/tmux-workspace.md)
+  - [Multi-User Sessions](/features/multi-user-sessions.md)
   - [Ops Control Plane](/features/ops-control-plane.md)
   - [Services](/features/services.md)
   - [Runbooks](/features/runbooks.md)

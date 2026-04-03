@@ -32,7 +32,7 @@ cpu_percent = 90.0
 mem_percent = 90.0
 disk_percent = 95.0
 webhook_url = ""
-webhook_events = "alert.created,alert.resolved"
+webhook_events = "alert.created,alert.resolved,alert.acked"
 
 [health_report]
 webhook_url = ""
@@ -47,6 +47,12 @@ journal_rows = 5000
 
 [runbooks]
 max_concurrent = 5
+
+# Multi-user session support.
+[multi_user]
+# allowed_users = ["alice", "bob"]
+# allow_root_target = false
+# user_switch_method = "sudo"
 ```
 
 ## Environment Variables
@@ -66,7 +72,7 @@ max_concurrent = 5
 | `SENTINEL_ALERT_MEM_PERCENT` | `90` | Memory usage alert threshold (percent) |
 | `SENTINEL_ALERT_DISK_PERCENT` | `95` | Disk usage alert threshold (percent) |
 | `SENTINEL_ALERT_WEBHOOK_URL` | empty | Webhook URL for alert notifications |
-| `SENTINEL_ALERT_WEBHOOK_EVENTS` | `alert.created,alert.resolved` | Comma-separated alert webhook events |
+| `SENTINEL_ALERT_WEBHOOK_EVENTS` | `alert.created,alert.resolved` | Comma-separated alert webhook events (`alert.created`, `alert.resolved`, `alert.acked`) |
 | `SENTINEL_HEALTH_REPORT_WEBHOOK_URL` | empty | Webhook URL for health report delivery |
 | `SENTINEL_HEALTH_REPORT_SCHEDULE` | empty | Cron schedule for health reports |
 | `SENTINEL_WATCHTOWER_ENABLED` | `true` | Enable watchtower service |
@@ -75,6 +81,9 @@ max_concurrent = 5
 | `SENTINEL_WATCHTOWER_CAPTURE_TIMEOUT` | `150ms` | Per-pane capture timeout |
 | `SENTINEL_WATCHTOWER_JOURNAL_ROWS` | `5000` | Activity journal retention |
 | `SENTINEL_RUNBOOK_MAX_CONCURRENT` | `5` | Max concurrent manual runbook executions |
+| `SENTINEL_ALLOWED_USERS` | (empty) | Comma-separated list of OS users allowed as session targets |
+| `SENTINEL_ALLOW_ROOT_TARGET` | `false` | Whether to allow targeting the root user |
+| `SENTINEL_USER_SWITCH_METHOD` | `sudo` | Method for switching users: `sudo` or `direct` |
 
 ## Recommended Profiles
 

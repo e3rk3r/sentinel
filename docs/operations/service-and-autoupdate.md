@@ -57,6 +57,8 @@ Resolution:
 - `systemctl status sentinel`
 - `journalctl -u sentinel -f`
 
+> ⚠️ Do not add `NoNewPrivileges=true` or `SystemCallArchitectures=native` to the systemd unit when multi-user sessions are in use — `sudo` requires the new-privilege capability.
+
 ## macOS (`launchd`) Notes
 
 - Same CLI command set as Linux.

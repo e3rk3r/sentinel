@@ -31,11 +31,13 @@ No Electron. No cloud relay. Just your host and your shell.
 - Runbooks for executable operational procedures with job tracking.
 - Recovery snapshots and restore workflows.
 - Guardrails for safer destructive terminal actions.
+- Multi-user session support for shared hosts and team environments.
 - Optimistic and responsive UI tuned for desktop and mobile.
 
 ## Core Capabilities
 
 - **Tmux** — Interactive PTY in the browser with tmux workspace management.
+- **Multi-user sessions** — Run tmux sessions as different OS users with security allowlist and sudo integration.
 - **Services** — Monitor and control systemd/launchd units from `/services`.
 - **Alerts** — Deduplicated alert feed from watchtower and service health at `/alerts`.
 - **Timeline** — Searchable operational audit log at `/timeline`.

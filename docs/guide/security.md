@@ -52,12 +52,27 @@ If `listen = "0.0.0.0:4040"`:
 - Sentinel itself serves HTTP; TLS termination is typically handled by a reverse proxy.
 - Protect upstream with HTTPS and strict origin policy.
 
+## Multi-User Session Security
+
+When `[multi_user]` is enabled, session creation can target other OS users. Validation follows a two-tier model:
+
+1. **Allowlist**: if `allowed_users` is configured, only listed users are permitted.
+2. **System users fallback**: if no allowlist is set, users are validated against `/etc/passwd` entries with UID >= 1000.
+
+Additional controls:
+
+- `allow_root_target` gate (defaults to `false`) — must be explicitly enabled to allow targeting the root user.
+- `ErrNoSystemUsers` blocks all user switching when system users cannot be loaded from `/etc/passwd`.
+- Validation failure returns `403 USER_NOT_ALLOWED`.
+- All multi-user session creations are logged.
+
 ## Security-Related Error Codes
 
 Common API auth/origin responses:
 
 - `401 UNAUTHORIZED`
 - `403 ORIGIN_DENIED`
+- `403 USER_NOT_ALLOWED`
 
 Guardrail enforcement can also block dangerous actions:
 

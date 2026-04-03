@@ -13,7 +13,7 @@ which tmux
 sentinel doctor
 ```
 
-If service runs as root, tmux sessions created by other users will not be visible by default.
+Watchtower now discovers multi-user sessions automatically via the `UserProvider` callback. If sessions are still not visible, verify that `[multi_user]` is configured and the target user exists on the system.
 
 ## Service shows different listen address than config
 
@@ -82,6 +82,43 @@ sentinel recovery restore --snapshot <id> --wait=true
 ```
 
 If restore conflicts, adjust `--conflict rename|replace|skip` and `--mode`.
+
+## `403 USER_NOT_ALLOWED` on session create
+
+Cause:
+
+- The target user is not in the `[multi_user]` allowlist, or system user validation rejected the user.
+
+Checks:
+
+- Verify `[multi_user]` section exists in config with correct `allowed_users` or that the target user has UID >= 1000 in `/etc/passwd`.
+- If targeting root, ensure `allow_root_target = true` is set.
+
+## `ErrNoSystemUsers` preventing user switching
+
+Cause:
+
+- System users could not be loaded from `/etc/passwd`.
+
+Checks:
+
+- Verify `/etc/passwd` is readable by the sentinel process user.
+- Run `sentinel doctor` to confirm system user detection.
+
+## `sudo` failures for multi-user sessions
+
+Cause:
+
+- `sudo` is not installed, or NOPASSWD is not configured for the sentinel user.
+
+Checks:
+
+```bash
+which sudo
+sudo -l -U <sentinel-user>
+```
+
+Ensure the sentinel user has a NOPASSWD sudoers entry for the required commands.
 
 ## Useful Diagnostics
 
