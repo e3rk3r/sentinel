@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.22](https://github.com/opus-domini/sentinel/compare/v0.5.21...v0.5.22) (2026-04-07)
+
+
+### Bug Fixes
+
+* clear WebGL texture atlas periodically to prevent glyph corruption ([a1ceb1e](https://github.com/opus-domini/sentinel/commit/a1ceb1ecd9375082476b8cc4ca5d5aa295e59422))
+* refresh sidebar on new sessions and persist auth cookie ([e5a08c3](https://github.com/opus-domini/sentinel/commit/e5a08c3efb8198644d32f632765060aa711cc39a))
+* remove session preset on kill to prevent ghost sidebar entry ([29f43e9](https://github.com/opus-domini/sentinel/commit/29f43e955cb86a5267f75e8e9735d9efb2500253))
+* resolve staticcheck SA5011 nil-pointer warnings in schedule tests ([36e96ae](https://github.com/opus-domini/sentinel/commit/36e96ae8333aa30f1505a5449fe57cd37652a09b))
+
 ## [0.5.21](https://github.com/opus-domini/sentinel/compare/v0.5.20...v0.5.21) (2026-04-03)
 
 
