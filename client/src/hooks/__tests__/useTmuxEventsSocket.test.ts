@@ -1537,7 +1537,7 @@ describe('useTmuxEventsSocket', () => {
       expect(delays[2]).toBeLessThanOrEqual(4299)
     })
 
-    it('caps backoff delay at 10 seconds', () => {
+    it('caps backoff delay at 30 seconds', () => {
       const timeoutSpy = vi.spyOn(window, 'setTimeout')
       const opts = makeOptions()
       renderHook(() => useTmuxEventsSocket(opts))
@@ -1547,12 +1547,12 @@ describe('useTmuxEventsSocket', () => {
       })
 
       // Simulate many reconnect failures to reach the cap
-      // expo = min(8, attempt), base = min(10000, 500 * 2^expo)
-      // At attempt=8+: expo=8, base = min(10000, 500*256) = 10000
+      // expo = min(8, attempt), base = min(30000, 500 * 2^expo)
+      // At attempt=8+: expo=8, base = min(30000, 500*256) = 30000
       for (let i = 0; i < 12; i++) {
         act(() => {
           lastSocket().emitClose()
-          vi.advanceTimersByTime(15_000)
+          vi.advanceTimersByTime(35_000)
         })
       }
 
@@ -1560,9 +1560,9 @@ describe('useTmuxEventsSocket', () => {
       const lastCall = timeoutSpy.mock.calls[timeoutSpy.mock.calls.length - 1]
       const lastDelay = lastCall[1] as number
 
-      // Should be capped: base 10000 + jitter 0..299 => max 10299
-      expect(lastDelay).toBeGreaterThanOrEqual(10_000)
-      expect(lastDelay).toBeLessThanOrEqual(10_299)
+      // Should be capped: base 30000 + jitter 0..299 => max 30299
+      expect(lastDelay).toBeGreaterThanOrEqual(30_000)
+      expect(lastDelay).toBeLessThanOrEqual(30_299)
     })
 
     it('resets reconnect attempts on successful open', () => {

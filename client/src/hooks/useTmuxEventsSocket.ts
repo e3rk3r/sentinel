@@ -505,7 +505,7 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
         runtimeMetricsRef.current.wsReconnects += 1
         const attempt = wsReconnectAttemptsRef.current
         const expo = Math.min(8, attempt)
-        const baseDelay = Math.min(10_000, 500 * 2 ** expo)
+        const baseDelay = Math.min(30_000, 500 * 2 ** expo)
         const jitter = Math.floor(Math.random() * 300)
         retryTimerRef.current = window.setTimeout(() => {
           retryTimerRef.current = 0

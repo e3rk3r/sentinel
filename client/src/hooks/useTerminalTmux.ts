@@ -1061,27 +1061,37 @@ export function useTerminalTmux({
   }, [fitRuntime])
 
   useEffect(() => {
-    const reconcileForegroundRenderer = () => {
+    const refreshAtlases = () => {
       if (document.visibilityState !== 'visible') return
       clearAllTextureAtlases()
+    }
+    document.addEventListener('visibilitychange', refreshAtlases)
+    window.addEventListener('focus', refreshAtlases)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshAtlases)
+      window.removeEventListener('focus', refreshAtlases)
+    }
+  }, [clearAllTextureAtlases])
+
+  // Reconnect dead sockets when the tab resumes from background. Only fires
+  // on visibilitychange (not focus) to avoid retriggering on every window
+  // click, which defeats backoff on flaky connections (mobile / Tailscale).
+  // Does not reset backoff — only socket.onopen should do that.
+  useEffect(() => {
+    const reconnectOnResume = () => {
+      if (document.visibilityState !== 'visible') return
       const sessionName = activeSessionRef.current.trim()
       if (sessionName === '') return
       const runtime = runtimesRef.current.get(sessionName)
       if (!runtime) return
       if (isSocketOpenOrConnecting(runtime.socket)) return
-      runtime.reconnect.reset()
       connectRuntime(runtime, { resetTerminal: false })
     }
-    document.addEventListener('visibilitychange', reconcileForegroundRenderer)
-    window.addEventListener('focus', reconcileForegroundRenderer)
+    document.addEventListener('visibilitychange', reconnectOnResume)
     return () => {
-      document.removeEventListener(
-        'visibilitychange',
-        reconcileForegroundRenderer,
-      )
-      window.removeEventListener('focus', reconcileForegroundRenderer)
+      document.removeEventListener('visibilitychange', reconnectOnResume)
     }
-  }, [clearAllTextureAtlases, connectRuntime])
+  }, [connectRuntime])
 
   useEffect(() => {
     const ATLAS_REFRESH_MS = 5 * 60 * 1000
