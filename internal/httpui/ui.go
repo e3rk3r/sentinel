@@ -151,8 +151,15 @@ func (h *Handler) attachWS(w http.ResponseWriter, r *http.Request) {
 	if targetUser != "" {
 		svc := tmux.Service{User: targetUser}
 		exists, err = svc.SessionExists(ctx, session)
-	} else {
+	}
+	// Fall back to the default tmux server when the registered user's
+	// server has no matching session (stale registry entry, or session
+	// created under the process user rather than the registered user).
+	if !exists && err == nil {
 		exists, err = tmuxSessionExistsFn(ctx, session)
+		if exists {
+			targetUser = ""
+		}
 	}
 	cancel()
 	if err != nil {
