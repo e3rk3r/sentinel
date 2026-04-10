@@ -21,7 +21,7 @@ import { useMetaContext } from '@/contexts/MetaContext'
 import { useTokenContext } from '@/contexts/TokenContext'
 import { useDateFormat } from '@/hooks/useDateFormat'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { useOpsEventsSocket } from '@/hooks/useOpsEventsSocket'
+import { useOpsEvents } from '@/hooks/useOpsEvents'
 import { useTmuxApi } from '@/hooks/useTmuxApi'
 import {
   OPS_OVERVIEW_QUERY_KEY,
@@ -191,11 +191,7 @@ function ActivitiesPage() {
     [queryClient, refreshActivity],
   )
 
-  const connectionState = useOpsEventsSocket({
-    authenticated,
-    tokenRequired,
-    onMessage: handleWSMessage,
-  })
+  const connectionState = useOpsEvents(handleWSMessage)
   const footerSummary = buildActivitiesFooterSummary({
     overviewError,
     activityError,

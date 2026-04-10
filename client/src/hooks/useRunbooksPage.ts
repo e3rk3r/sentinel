@@ -15,7 +15,7 @@ import type { RunbookStepDraft } from '@/components/RunbookStepEditor'
 import type { ScheduleDraft } from '@/components/RunbookScheduleEditor'
 import { createBlankStep } from '@/components/RunbookEditor'
 import { useToastContext } from '@/contexts/ToastContext'
-import { useOpsEventsSocket } from '@/hooks/useOpsEventsSocket'
+import { useOpsEvents } from '@/hooks/useOpsEvents'
 import { useTmuxApi } from '@/hooks/useTmuxApi'
 import {
   OPS_RUNBOOKS_QUERY_KEY,
@@ -173,15 +173,7 @@ function draftToPayload(draft: RunbookDraft) {
   }
 }
 
-type UseRunbooksPageOptions = {
-  authenticated: boolean
-  tokenRequired: boolean
-}
-
-export function useRunbooksPage({
-  authenticated,
-  tokenRequired,
-}: UseRunbooksPageOptions) {
+export function useRunbooksPage() {
   const { pushToast } = useToastContext()
   const api = useTmuxApi()
   const queryClient = useQueryClient()
@@ -250,11 +242,7 @@ export function useRunbooksPage({
     [queryClient, refreshRunbooks],
   )
 
-  const connectionState = useOpsEventsSocket({
-    authenticated,
-    tokenRequired,
-    onMessage: handleWSMessage,
-  })
+  const connectionState = useOpsEvents(handleWSMessage)
 
   const runRunbook = useCallback(
     async (runbookID: string, parameters?: Record<string, string>) => {

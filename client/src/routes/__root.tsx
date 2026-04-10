@@ -18,11 +18,13 @@ import { Input } from '@/components/ui/input'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LayoutContext } from '@/contexts/LayoutContext'
 import { MetaContext } from '@/contexts/MetaContext'
+import { OpsEventsContext } from '@/contexts/OpsEventsContext'
 import { ToastContext } from '@/contexts/ToastContext'
 import { TokenContext } from '@/contexts/TokenContext'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useSentinelMeta } from '@/hooks/useSentinelMeta'
 import { useServerStatus } from '@/hooks/useServerStatus'
+import { useSharedOpsEventsSocket } from '@/hooks/useSharedOpsEventsSocket'
 import { useShellLayout } from '@/hooks/useShellLayout'
 import { useToasts } from '@/hooks/useToasts'
 import { useVisualViewport } from '@/hooks/useVisualViewport'
@@ -186,6 +188,11 @@ function RootComponent() {
   const needsTokenGate = meta.loaded && meta.tokenRequired && meta.unauthorized
   const showOutlet = meta.loaded && !needsTokenGate
 
+  const opsEvents = useSharedOpsEventsSocket({
+    authenticated,
+    tokenRequired: meta.tokenRequired,
+  })
+
   const setToken = useCallback(
     (token: string) => {
       void updateAuthCookie(queryClient, token)
@@ -202,18 +209,20 @@ function RootComponent() {
     <MetaContext.Provider value={meta}>
       <TokenContext.Provider value={{ authenticated, setToken }}>
         <ToastContext.Provider value={{ toasts, pushToast, dismissToast }}>
-          <LayoutContext.Provider value={layout}>
-            <TooltipProvider delayDuration={300}>
-              <ErrorBoundary>
-                {showOutlet ? <Outlet /> : <LoadingGate />}
-                {needsTokenGate && (
-                  <TokenGateDialog onSubmit={submitGateToken} />
-                )}
-                <ToastViewport toasts={toasts} onDismiss={dismissToast} />
-                {offline && <ServerOfflineBanner onRetry={retry} />}
-              </ErrorBoundary>
-            </TooltipProvider>
-          </LayoutContext.Provider>
+          <OpsEventsContext.Provider value={opsEvents}>
+            <LayoutContext.Provider value={layout}>
+              <TooltipProvider delayDuration={300}>
+                <ErrorBoundary>
+                  {showOutlet ? <Outlet /> : <LoadingGate />}
+                  {needsTokenGate && (
+                    <TokenGateDialog onSubmit={submitGateToken} />
+                  )}
+                  <ToastViewport toasts={toasts} onDismiss={dismissToast} />
+                  {offline && <ServerOfflineBanner onRetry={retry} />}
+                </ErrorBoundary>
+              </TooltipProvider>
+            </LayoutContext.Provider>
+          </OpsEventsContext.Provider>
         </ToastContext.Provider>
       </TokenContext.Provider>
     </MetaContext.Provider>

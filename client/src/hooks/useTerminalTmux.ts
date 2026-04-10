@@ -713,12 +713,15 @@ export function useTerminalTmux({
         openRuntimeInHost(runtime, host)
       }
 
-      connectRuntime(runtime)
+      // Don't connect immediately — the active-session effect handles
+      // connecting the visible tab, and background tabs connect lazily
+      // when the user switches to them.  This prevents N simultaneous
+      // WebSocket connections on page load from exhausting Chrome's
+      // per-origin socket pool (max 6 for HTTP/1.1).
       return runtime
     },
     [
       allowWheelInAlternateBuffer,
-      connectRuntime,
       fontSize,
       openRuntimeInHost,
       sendResize,
@@ -998,6 +1001,16 @@ export function useTerminalTmux({
       }
     }
 
+    // Connect the active session now — background tabs stay disconnected
+    // until the user switches to them (via the activeSession effect).
+    const active = activeSessionRef.current.trim()
+    if (active !== '') {
+      const runtime = runtimesRef.current.get(active)
+      if (runtime && !isSocketOpenOrConnecting(runtime.socket)) {
+        connectRuntime(runtime, { resetTerminal: false })
+      }
+    }
+
     for (const runtime of [...runtimesRef.current.values()]) {
       if (!allowedSessions.has(runtime.session)) {
         disposeRuntime(runtime, 'tab closed')
@@ -1005,7 +1018,13 @@ export function useTerminalTmux({
     }
 
     publishActiveRuntimeState()
-  }, [createRuntime, disposeRuntime, openTabs, publishActiveRuntimeState])
+  }, [
+    connectRuntime,
+    createRuntime,
+    disposeRuntime,
+    openTabs,
+    publishActiveRuntimeState,
+  ])
 
   useEffect(() => {
     for (const runtime of runtimesRef.current.values()) {

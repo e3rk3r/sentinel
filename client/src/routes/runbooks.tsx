@@ -58,7 +58,7 @@ function RunbooksPage() {
     toggleScheduleEnabled,
     triggerSchedule,
     selectRunbook,
-  } = useRunbooksPage({ authenticated, tokenRequired })
+  } = useRunbooksPage()
 
   const showEditor = editingDraft != null
   const showDetail = !showEditor && selectedRunbook != null

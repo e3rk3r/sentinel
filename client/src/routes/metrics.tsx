@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useLayoutContext } from '@/contexts/LayoutContext'
 import { useMetaContext } from '@/contexts/MetaContext'
 import { useTokenContext } from '@/contexts/TokenContext'
-import { useOpsEventsSocket } from '@/hooks/useOpsEventsSocket'
+import { useOpsEvents } from '@/hooks/useOpsEvents'
 import { useTmuxApi } from '@/hooks/useTmuxApi'
 import { MetricCard } from '@/lib/MetricCard'
 import { MetricsHistory } from '@/lib/MetricsHistory'
@@ -186,11 +186,7 @@ function MetricsPage() {
     [queryClient],
   )
 
-  const connectionState = useOpsEventsSocket({
-    authenticated,
-    tokenRequired,
-    onMessage: handleWSMessage,
-  })
+  const connectionState = useOpsEvents(handleWSMessage)
   const footerSummary = buildMetricsFooterSummary({
     overviewError,
     metricsError,

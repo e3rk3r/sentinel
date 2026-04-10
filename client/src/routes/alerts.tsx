@@ -20,7 +20,7 @@ import { useMetaContext } from '@/contexts/MetaContext'
 import { useToastContext } from '@/contexts/ToastContext'
 import { useTokenContext } from '@/contexts/TokenContext'
 import { useDateFormat } from '@/hooks/useDateFormat'
-import { useOpsEventsSocket } from '@/hooks/useOpsEventsSocket'
+import { useOpsEvents } from '@/hooks/useOpsEvents'
 import { useTmuxApi } from '@/hooks/useTmuxApi'
 import {
   OPS_ALERTS_QUERY_KEY,
@@ -216,11 +216,7 @@ function AlertsPage() {
     [queryClient, refreshAlerts],
   )
 
-  const connectionState = useOpsEventsSocket({
-    authenticated,
-    tokenRequired,
-    onMessage: handleWSMessage,
-  })
+  const connectionState = useOpsEvents(handleWSMessage)
   const footerSummary = buildAlertsFooterSummary({
     overviewError,
     alertsError,
