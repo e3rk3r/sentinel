@@ -215,6 +215,7 @@ const ServicesBrowseControls = memo(function ServicesBrowseControls({
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-2">
       <select
+        name="services-scope"
         value={scopeValue}
         onChange={(e) => onScopeChange(e.target.value)}
         className="h-7 flex-1 cursor-pointer rounded-md border border-border-subtle bg-surface-overlay px-2 text-[12px] md:h-8 md:flex-none"
@@ -228,6 +229,7 @@ const ServicesBrowseControls = memo(function ServicesBrowseControls({
         <div className="relative min-w-0 flex-1">
           <Search className="absolute left-2 top-1.5 h-4 w-4 text-muted-foreground md:top-2" />
           <input
+            name="services-search"
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
             placeholder="Search units..."

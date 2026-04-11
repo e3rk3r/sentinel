@@ -64,6 +64,7 @@ export default function SessionControls({
 
       <Input
         className="bg-surface-overlay"
+        name="sessions-filter"
         placeholder="filter sessions..."
         value={filter}
         onChange={(event) => onFilterChange(event.target.value)}

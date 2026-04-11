@@ -105,6 +105,7 @@ export default function ServicesSidebar({
           </div>
           <Input
             className="bg-surface-overlay text-[12px] md:h-8"
+            name="services-filter"
             placeholder="filter services..."
             value={filter}
             onChange={(event) => setFilter(event.target.value)}

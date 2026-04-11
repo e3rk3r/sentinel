@@ -24,6 +24,27 @@ const MIN_FONT_SIZE = 8
 const MAX_FONT_SIZE = 24
 const FONT_SIZE_KEY = 'sentinel_font_size'
 const TERMINAL_LEFT_GUTTER_PX = 8
+const SOCKET_HANDSHAKE_TIMEOUT_MS = 7_000
+
+function supportsWebgl2(): boolean {
+  if (
+    typeof document === 'undefined' ||
+    typeof globalThis.WebGL2RenderingContext === 'undefined'
+  ) {
+    return false
+  }
+
+  try {
+    const canvas = document.createElement('canvas')
+    return !!canvas.getContext('webgl2', {
+      antialias: false,
+      depth: false,
+      preserveDrawingBuffer: true,
+    })
+  } catch {
+    return false
+  }
+}
 
 function applyTerminalChrome(host: HTMLDivElement, themeID: string) {
   const themeBg = getTerminalTheme(themeID).colors.background ?? ''
@@ -68,6 +89,7 @@ type SessionRuntime = {
   hostResizeRafId: number | null
   reconnect: ReconnectState
   reconnectTimer: number | null
+  handshakeTimer: number | null
 }
 
 type UseTerminalTmuxArgs = {
@@ -171,6 +193,13 @@ export function useTerminalTmux({
     if (runtime.reconnectTimer !== null) {
       window.clearTimeout(runtime.reconnectTimer)
       runtime.reconnectTimer = null
+    }
+  }, [])
+
+  const clearHandshakeTimer = useCallback((runtime: SessionRuntime) => {
+    if (runtime.handshakeTimer !== null) {
+      window.clearTimeout(runtime.handshakeTimer)
+      runtime.handshakeTimer = null
     }
   }, [])
 
@@ -329,6 +358,10 @@ export function useTerminalTmux({
         // whole words via composition.
         const ta = runtime.terminal.textarea
         if (ta) {
+          ta.setAttribute(
+            'name',
+            `terminal-input-${runtime.session.replace(/[^a-zA-Z0-9_-]+/g, '-')}`,
+          )
           ta.setAttribute('autocorrect', 'off')
           ta.setAttribute('autocomplete', 'off')
           ta.setAttribute('autocapitalize', 'off')
@@ -435,8 +468,16 @@ export function useTerminalTmux({
   )
 
   const connectRuntime = useCallback(
-    (runtime: SessionRuntime, options?: { resetTerminal?: boolean }) => {
+    (
+      runtime: SessionRuntime,
+      options?: { resetTerminal?: boolean; force?: boolean },
+    ) => {
+      if (!options?.force && isSocketOpenOrConnecting(runtime.socket)) {
+        return
+      }
+
       clearReconnectTimer(runtime)
+      clearHandshakeTimer(runtime)
       runtime.generation += 1
       const generation = runtime.generation
 
@@ -466,8 +507,19 @@ export function useTerminalTmux({
       )
       socket.binaryType = 'arraybuffer'
       runtime.socket = socket
+      runtime.handshakeTimer = window.setTimeout(() => {
+        runtime.handshakeTimer = null
+        if (!isSocketCurrent(runtime, generation, socket)) {
+          return
+        }
+        if (socket.readyState !== WebSocket.CONNECTING) {
+          return
+        }
+        socket.close()
+      }, SOCKET_HANDSHAKE_TIMEOUT_MS)
 
       socket.onopen = () => {
+        clearHandshakeTimer(runtime)
         if (!isSocketCurrent(runtime, generation, socket)) {
           return
         }
@@ -537,6 +589,7 @@ export function useTerminalTmux({
       }
 
       socket.onclose = () => {
+        clearHandshakeTimer(runtime)
         if (!isRuntimeCurrent(runtime, generation)) {
           return
         }
@@ -565,10 +618,12 @@ export function useTerminalTmux({
       }
     },
     [
+      clearHandshakeTimer,
       clearReconnectTimer,
       connectedVerb,
       connectingVerb,
       fitRuntime,
+      isSocketOpenOrConnecting,
       isRuntimeCurrent,
       isSocketCurrent,
       onAttachedMobile,
@@ -581,6 +636,7 @@ export function useTerminalTmux({
   const closeRuntimeSocket = useCallback(
     (runtime: SessionRuntime, reason?: string) => {
       clearReconnectTimer(runtime)
+      clearHandshakeTimer(runtime)
 
       if (reason && reason !== '') {
         runtime.manualCloseReason = reason
@@ -597,7 +653,7 @@ export function useTerminalTmux({
       runtime.socket = null
       socket.close()
     },
-    [clearReconnectTimer, setRuntimeStatus],
+    [clearHandshakeTimer, clearReconnectTimer, setRuntimeStatus],
   )
 
   const createRuntime = useCallback(
@@ -633,14 +689,16 @@ export function useTerminalTmux({
         event.preventDefault()
         window.open(uri, '_blank', 'noopener,noreferrer')
       })
-      const webglAddon = new WebglAddon()
+      const webglAddon = supportsWebgl2() ? new WebglAddon() : null
 
       terminal.loadAddon(fitAddon)
       terminal.loadAddon(clipboardAddon)
       terminal.loadAddon(searchAddon)
       terminal.loadAddon(serializeAddon)
       terminal.loadAddon(webLinksAddon)
-      terminal.loadAddon(webglAddon)
+      if (webglAddon) {
+        terminal.loadAddon(webglAddon)
+      }
 
       const runtime: SessionRuntime = {
         session,
@@ -660,7 +718,7 @@ export function useTerminalTmux({
         onSelectionDispose: { dispose: () => undefined },
         contextMenuDispose: { dispose: () => undefined },
         touchWheelDispose: { dispose: () => undefined },
-        webglContextLossDispose: webglAddon.onContextLoss(() => {
+        webglContextLossDispose: webglAddon?.onContextLoss(() => {
           console.warn(`sentinel: webgl context lost (${session})`)
           pushToastRef.current({
             level: 'error',
@@ -668,11 +726,12 @@ export function useTerminalTmux({
             message:
               'Terminal rendering was interrupted. Try reconnecting the session.',
           })
-        }),
+        }) ?? { dispose: () => undefined },
         hostResizeObserver: null,
         hostResizeRafId: null,
         reconnect: createReconnect(),
         reconnectTimer: null,
+        handshakeTimer: null,
       }
 
       runtime.onDataDispose = terminal.onData((data) => {
@@ -732,6 +791,7 @@ export function useTerminalTmux({
   const disposeRuntime = useCallback(
     (runtime: SessionRuntime, reason: string) => {
       clearReconnectTimer(runtime)
+      clearHandshakeTimer(runtime)
       runtime.generation += 1
       closeRuntimeSocket(runtime, reason)
       cleanupHostResizeObserver(runtime)
@@ -746,7 +806,12 @@ export function useTerminalTmux({
       hostsRef.current.delete(runtime.session)
       hostCallbacksRef.current.delete(runtime.session)
     },
-    [clearReconnectTimer, cleanupHostResizeObserver, closeRuntimeSocket],
+    [
+      clearHandshakeTimer,
+      clearReconnectTimer,
+      cleanupHostResizeObserver,
+      closeRuntimeSocket,
+    ],
   )
 
   const getTerminalHostRef = useCallback(
@@ -1162,9 +1227,12 @@ export function useTerminalTmux({
       if (!runtime) return
       if (!options?.force && isSocketOpenOrConnecting(runtime.socket)) return
       runtime.reconnect.reset()
-      connectRuntime(runtime, { resetTerminal: false })
+      connectRuntime(runtime, {
+        force: options?.force === true,
+        resetTerminal: false,
+      })
     },
-    [connectRuntime],
+    [connectRuntime, isSocketOpenOrConnecting],
   )
 
   return {

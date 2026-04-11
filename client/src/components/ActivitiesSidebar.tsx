@@ -141,6 +141,7 @@ export default function ActivitiesSidebar({
             Filters
           </span>
           <Input
+            name="activities-search"
             value={activityQuery}
             onChange={(e) => onActivityQueryChange(e.target.value)}
             placeholder="search activities"

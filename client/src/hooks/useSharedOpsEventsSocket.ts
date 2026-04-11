@@ -119,7 +119,7 @@ export function useSharedOpsEventsSocket(options: {
   const subscribe = useCallback(
     (handler: Subscriber) => {
       subscribersRef.current.add(handler)
-      // Activate connection on first subscriber
+      // Activate connection on first subscriber.
       if (subscribersRef.current.size === 1 && socketRef.current === null) {
         connect()
       }

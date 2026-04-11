@@ -122,6 +122,7 @@ function TokenGateDialog({
           }}
         >
           <Input
+            name="auth-token"
             placeholder="token"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}

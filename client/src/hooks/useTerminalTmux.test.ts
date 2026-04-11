@@ -648,6 +648,31 @@ describe('useTerminalTmux – auto-reconnect', () => {
     // New WebSocket created
     expect(MockWebSocket.instances.length).toBe(countBefore + 1)
   })
+
+  it('forces reconnect when the websocket handshake stalls in CONNECTING', () => {
+    const { result } = renderTerminalHook()
+    const ws = latestWS()
+
+    Object.defineProperty(ws, 'readyState', {
+      value: MockWebSocket.CONNECTING,
+      configurable: true,
+    })
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      vi.advanceTimersByTime(7_000)
+    })
+
+    expect(result.current.connectionState).toBe('connecting')
+    expect(result.current.statusDetail).toBe('reconnecting in 2s')
+
+    act(() => {
+      vi.advanceTimersByTime(1_200)
+    })
+
+    expect(MockWebSocket.instances.length).toBe(countBefore + 1)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -679,6 +704,19 @@ describe('useTerminalTmux – reconnectActiveSession force', () => {
     expect(result.current.connectionState).toBe('connected')
   })
 
+  it('reconnectActiveSession() without force skips when socket is still CONNECTING', () => {
+    const { result } = renderTerminalHook()
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      result.current.reconnectActiveSession()
+    })
+
+    expect(MockWebSocket.instances.length).toBe(countBefore)
+    expect(result.current.connectionState).toBe('connecting')
+  })
+
   it('reconnectActiveSession({ force: true }) reconnects even when socket is OPEN', () => {
     const { result } = renderTerminalHook()
     connectSession()
@@ -691,6 +729,19 @@ describe('useTerminalTmux – reconnectActiveSession force', () => {
     })
 
     // A new WebSocket was created despite the old one being OPEN.
+    expect(MockWebSocket.instances.length).toBe(countBefore + 1)
+    expect(result.current.connectionState).toBe('connecting')
+  })
+
+  it('reconnectActiveSession({ force: true }) reconnects while socket is CONNECTING', () => {
+    const { result } = renderTerminalHook()
+
+    const countBefore = MockWebSocket.instances.length
+
+    act(() => {
+      result.current.reconnectActiveSession({ force: true })
+    })
+
     expect(MockWebSocket.instances.length).toBe(countBefore + 1)
     expect(result.current.connectionState).toBe('connecting')
   })
@@ -906,6 +957,43 @@ describe('useTerminalTmux – terminal chrome', () => {
     expect(host.style.backgroundColor).not.toBe(initialBackground)
     expect(terminalRoot?.style.backgroundColor).toBe(host.style.backgroundColor)
     expect(latestTerminal()?.clearTextureAtlas).toHaveBeenCalledTimes(1)
+
+    host.remove()
+  })
+
+  it('skips the WebGL addon when WebGL2 is unavailable', () => {
+    const originalWebGL2RenderingContext = globalThis.WebGL2RenderingContext
+    Object.defineProperty(globalThis, 'WebGL2RenderingContext', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    })
+
+    try {
+      renderTerminalHook()
+      expect(latestTerminal()?.loadAddon).toHaveBeenCalledTimes(5)
+    } finally {
+      Object.defineProperty(globalThis, 'WebGL2RenderingContext', {
+        value: originalWebGL2RenderingContext,
+        writable: true,
+        configurable: true,
+      })
+    }
+  })
+
+  it('assigns a name to the hidden terminal textarea', async () => {
+    const { result } = renderTerminalHook()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+
+    await act(async () => {
+      result.current.getTerminalHostRef('test-session')(host)
+      await Promise.resolve()
+    })
+
+    expect(host.querySelector('textarea')?.getAttribute('name')).toBe(
+      'terminal-input-test-session',
+    )
 
     host.remove()
   })

@@ -122,6 +122,7 @@ export default function RunbooksSidebar({
           </div>
           <Input
             className="bg-surface-overlay text-[12px] md:h-8"
+            name="runbooks-filter"
             placeholder="filter runbooks..."
             value={filter}
             onChange={(event) => setFilter(event.target.value)}

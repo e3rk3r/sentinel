@@ -274,21 +274,56 @@ export function useSessionCRUD(options: UseSessionCRUDOptions) {
       for (const name of merged.confirmedRenamedNames) {
         pendingRenameSessionsRef.current.delete(name)
       }
-      setSessions(merged.sessions)
-      const sessionNames = merged.sessionNamesForSync
+      const currentActiveSession = tabsStateRef.current.activeSession.trim()
+      const activeSessionRecord =
+        currentActiveSession === ''
+          ? null
+          : (sessionsRef.current.find(
+              (item) => item.name === currentActiveSession,
+            ) ?? null)
+      const shouldPreserveConnectingActiveSession =
+        currentActiveSession !== '' &&
+        activeSessionRecord !== null &&
+        connectionState === 'connecting' &&
+        !merged.sessionNamesForSync.includes(currentActiveSession)
+
+      const nextSessions = shouldPreserveConnectingActiveSession
+        ? upsertOptimisticAttachedSession(
+            merged.sessions,
+            currentActiveSession,
+            activeSessionRecord.activityAt,
+            activeSessionRecord.icon,
+            activeSessionRecord.user ?? '',
+          )
+        : merged.sessions
+      const sessionNames = shouldPreserveConnectingActiveSession
+        ? [
+            currentActiveSession,
+            ...merged.sessionNamesForSync.filter(
+              (name) => name !== currentActiveSession,
+            ),
+          ]
+        : merged.sessionNamesForSync
+
+      setSessions(nextSessions)
       for (const name of merged.confirmedKilledNames) {
         clearPendingSessionRenamesForName(name)
         clearPendingInspectorSessionState(name)
       }
-      const cur = tabsStateRef.current.activeSession
-      if (cur !== '' && !sessionNames.includes(cur)) {
+      if (
+        currentActiveSession !== '' &&
+        !sessionNames.includes(currentActiveSession)
+      ) {
         closeCurrentSocket('active session removed')
         resetTerminal()
         setConnection('disconnected', 'active session removed')
       }
       dispatchTabs({ type: 'sync', sessions: sessionNames })
-      if (cur !== '' && merged.confirmedPendingNames.includes(cur)) {
-        dispatchTabs({ type: 'activate', session: cur })
+      if (
+        currentActiveSession !== '' &&
+        merged.confirmedPendingNames.includes(currentActiveSession)
+      ) {
+        dispatchTabs({ type: 'activate', session: currentActiveSession })
       }
     } catch (error) {
       const message =

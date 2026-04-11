@@ -185,6 +185,9 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
 
   // Initial sync on page load
   useEffect(() => {
+    if (document.visibilityState !== 'visible') {
+      return
+    }
     refreshAllState()
   }, [refreshAllState])
 
@@ -200,6 +203,9 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
       }
     }
     const onOnline = () => {
+      if (document.visibilityState !== 'visible') {
+        return
+      }
       if (eventsSocketConnected) {
         void syncActivityDelta({ reason: 'browser-online' })
         return
@@ -218,11 +224,17 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
   useEffect(() => {
     if (tokenRequired && !authenticated) return
     if (eventsSocketConnected) return
-    runtimeMetricsRef.current.fallbackRefreshCount += 1
-    refreshAllState()
-    const id = window.setInterval(() => {
+    const runFallbackRefresh = () => {
+      if (document.visibilityState !== 'visible') {
+        return
+      }
       runtimeMetricsRef.current.fallbackRefreshCount += 1
       refreshAllState()
+    }
+
+    runFallbackRefresh()
+    const id = window.setInterval(() => {
+      runFallbackRefresh()
     }, 8_000)
     return () => {
       window.clearInterval(id)
@@ -316,7 +328,9 @@ export function useTmuxEventsSocket(options: UseTmuxEventsSocketOptions) {
         presenceSocketRef.current = socket
         setEventsSocketConnected(true)
         sendPresenceOverWS(true)
-        void syncActivityDelta({ reason: 'events-open', force: true })
+        if (document.visibilityState === 'visible') {
+          void syncActivityDelta({ reason: 'events-open', force: true })
+        }
       }
 
       socket.onmessage = (event) => {

@@ -61,12 +61,14 @@ type MockOptions = {
   sessions?: Array<Session>
   activeSession?: string
   openTabs?: Array<string>
+  connectionState?: 'connected' | 'connecting' | 'disconnected' | 'error'
 }
 
 function createMockOptions(overrides: MockOptions = {}) {
   const sessions = overrides.sessions ?? [makeSession('prod')]
   const activeSession = overrides.activeSession ?? 'prod'
   const openTabs = overrides.openTabs ?? ['prod']
+  const connectionState = overrides.connectionState ?? 'connected'
 
   const api = (overrides.api ?? vi.fn()) as ApiFunction
   const dispatchTabs: DispatchTabs = vi.fn()
@@ -113,7 +115,7 @@ function createMockOptions(overrides: MockOptions = {}) {
     closeCurrentSocket,
     resetTerminal,
     setConnection,
-    connectionState: 'connected' as const,
+    connectionState,
     refreshInspector,
     clearPendingInspectorSessionState,
     pushErrorToast,
@@ -378,5 +380,75 @@ describe('useSessionCRUD – createSession', () => {
     })
 
     expect(opts.pendingCreateSessionsRef.current.has('dev')).toBe(false)
+  })
+})
+
+describe('useSessionCRUD – refreshSessions', () => {
+  it('preserves the active session while the terminal is still connecting', async () => {
+    const api = vi.fn().mockResolvedValue({
+      sessions: [makeSession('Home')],
+    })
+    const opts = createMockOptions({
+      api,
+      sessions: [makeSession('Hugo'), makeSession('Home')],
+      activeSession: 'Hugo',
+      openTabs: ['Hugo'],
+      connectionState: 'connecting',
+    })
+
+    const { result } = renderHook(() => useSessionCRUD(opts))
+
+    await act(async () => {
+      await result.current.refreshSessions()
+    })
+
+    expect(opts.closeCurrentSocket).not.toHaveBeenCalled()
+    expect(opts.resetTerminal).not.toHaveBeenCalled()
+    expect(opts.setConnection).not.toHaveBeenCalledWith(
+      'disconnected',
+      'active session removed',
+    )
+    expect(opts.dispatchTabs).toHaveBeenCalledWith({
+      type: 'sync',
+      sessions: ['Hugo', 'Home'],
+    })
+    expect(opts.setSessions).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Hugo' }),
+        expect.objectContaining({ name: 'Home' }),
+      ]),
+    )
+  })
+
+  it('removes the active session when it disappears after the terminal is connected', async () => {
+    const api = vi.fn().mockResolvedValue({
+      sessions: [makeSession('Home')],
+    })
+    const opts = createMockOptions({
+      api,
+      sessions: [makeSession('Hugo'), makeSession('Home')],
+      activeSession: 'Hugo',
+      openTabs: ['Hugo'],
+      connectionState: 'connected',
+    })
+
+    const { result } = renderHook(() => useSessionCRUD(opts))
+
+    await act(async () => {
+      await result.current.refreshSessions()
+    })
+
+    expect(opts.closeCurrentSocket).toHaveBeenCalledWith(
+      'active session removed',
+    )
+    expect(opts.resetTerminal).toHaveBeenCalled()
+    expect(opts.setConnection).toHaveBeenCalledWith(
+      'disconnected',
+      'active session removed',
+    )
+    expect(opts.dispatchTabs).toHaveBeenCalledWith({
+      type: 'sync',
+      sessions: ['Home'],
+    })
   })
 })

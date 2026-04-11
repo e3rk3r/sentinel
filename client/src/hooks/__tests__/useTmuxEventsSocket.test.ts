@@ -197,6 +197,18 @@ describe('useTmuxEventsSocket', () => {
     vi.restoreAllMocks()
   })
 
+  // The events socket now connects immediately; keep this helper so the
+  // existing call sites remain linear.
+  function advancePastConnectDelay() {
+    // no-op
+  }
+
+  // Render the hook through a shared helper so tests stay consistent.
+  function renderEventsHook(opts?: ReturnType<typeof makeOptions>) {
+    const result = renderHook(() => useTmuxEventsSocket(opts ?? makeOptions()))
+    return result
+  }
+
   // -------------------------------------------------------------------------
   // 1. Connection lifecycle
   // -------------------------------------------------------------------------
@@ -204,7 +216,7 @@ describe('useTmuxEventsSocket', () => {
   describe('connection lifecycle', () => {
     it('connects to WebSocket on mount when authenticated', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       expect(MockWebSocket.instances.length).toBeGreaterThanOrEqual(1)
       expect(lastSocket().url).toContain('/ws/events')
@@ -215,7 +227,7 @@ describe('useTmuxEventsSocket', () => {
         authenticated: false,
         tokenRequired: true,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       expect(MockWebSocket.instances).toHaveLength(0)
     })
@@ -225,14 +237,14 @@ describe('useTmuxEventsSocket', () => {
         authenticated: false,
         tokenRequired: false,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       expect(MockWebSocket.instances.length).toBeGreaterThanOrEqual(1)
     })
 
     it('sets eventsSocketConnected to true on open', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -243,7 +255,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('sets eventsSocketConnected to false on close', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -263,14 +275,14 @@ describe('useTmuxEventsSocket', () => {
         tokenRequired: true,
         settlePendingSeenAcks,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       expect(settlePendingSeenAcks).toHaveBeenCalledWith(false)
     })
 
     it('nulls presenceSocketRef on close', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -285,7 +297,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('stores socket in presenceSocketRef on open', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -297,7 +309,7 @@ describe('useTmuxEventsSocket', () => {
     it('sends presence over WS on open', () => {
       const sendPresenceOverWS = vi.fn(() => true)
       const opts = makeOptions({ sendPresenceOverWS })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -308,7 +320,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('increments wsOpenCount on open', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -319,7 +331,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('increments wsCloseCount on close', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -331,7 +343,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('closes socket on unmount', () => {
       const opts = makeOptions()
-      const { unmount } = renderHook(() => useTmuxEventsSocket(opts))
+      const { unmount } = renderEventsHook(opts)
 
       const socket = lastSocket()
       act(() => {
@@ -346,7 +358,7 @@ describe('useTmuxEventsSocket', () => {
       mockedShouldRefreshSessions.mockReturnValue({ refresh: true })
       const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout')
       const opts = makeOptions()
-      const { unmount } = renderHook(() => useTmuxEventsSocket(opts))
+      const { unmount } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -377,13 +389,14 @@ describe('useTmuxEventsSocket', () => {
 
       authenticated = true
       rerender()
+      advancePastConnectDelay()
 
       expect(MockWebSocket.instances.length).toBeGreaterThanOrEqual(1)
     })
 
     it('does not force-close the socket on error', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       const socket = lastSocket()
 
@@ -407,7 +420,7 @@ describe('useTmuxEventsSocket', () => {
         applySessionActivityPatches,
         applyInspectorProjectionPatches,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -446,7 +459,7 @@ describe('useTmuxEventsSocket', () => {
         refreshSessions,
         handleTmuxSessionsEvent,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -488,7 +501,7 @@ describe('useTmuxEventsSocket', () => {
         applySessionActivityPatches,
         applyInspectorProjectionPatches,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -524,7 +537,7 @@ describe('useTmuxEventsSocket', () => {
           activePaneID: null,
         }) as TabsStateRef,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -560,7 +573,7 @@ describe('useTmuxEventsSocket', () => {
         refreshInspector,
         handleTmuxInspectorEvent,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -599,7 +612,7 @@ describe('useTmuxEventsSocket', () => {
     it('skips inspector refresh when action is "seen"', () => {
       const refreshInspector = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshInspector })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -631,7 +644,7 @@ describe('useTmuxEventsSocket', () => {
     it('skips inspector refresh when action is "select-window"', () => {
       const refreshInspector = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshInspector })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -661,7 +674,7 @@ describe('useTmuxEventsSocket', () => {
     it('skips inspector refresh when action is "select-pane"', () => {
       const refreshInspector = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshInspector })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -691,7 +704,7 @@ describe('useTmuxEventsSocket', () => {
     it('skips inspector refresh when action is empty', () => {
       const refreshInspector = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshInspector })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -729,7 +742,7 @@ describe('useTmuxEventsSocket', () => {
           activePaneID: null,
         }) as TabsStateRef,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -765,7 +778,7 @@ describe('useTmuxEventsSocket', () => {
         timelineSessionFilterRef: makeRef('all'),
         loadTimelineRef: makeRef(loadTimeline),
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -794,7 +807,7 @@ describe('useTmuxEventsSocket', () => {
         timelineOpenRef: makeRef(false),
         loadTimelineRef: makeRef(loadTimeline),
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -831,7 +844,7 @@ describe('useTmuxEventsSocket', () => {
         }) as TabsStateRef,
         loadTimelineRef: makeRef(loadTimeline),
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -860,7 +873,7 @@ describe('useTmuxEventsSocket', () => {
         timelineSessionFilterRef: makeRef('prod'),
         loadTimelineRef: makeRef(loadTimeline),
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -882,7 +895,7 @@ describe('useTmuxEventsSocket', () => {
     it('handles tmux.guardrail.blocked and shows error toast', () => {
       const pushErrorToast = vi.fn()
       const opts = makeOptions({ pushErrorToast })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -909,7 +922,7 @@ describe('useTmuxEventsSocket', () => {
     it('uses default guardrail message when decision.message is missing', () => {
       const pushErrorToast = vi.fn()
       const opts = makeOptions({ pushErrorToast })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -937,7 +950,7 @@ describe('useTmuxEventsSocket', () => {
         tokenRequired: true,
         settlePendingSeenAcks,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       const socket = lastSocket()
       act(() => {
@@ -966,7 +979,7 @@ describe('useTmuxEventsSocket', () => {
         applySessionActivityPatches,
         applyInspectorProjectionPatches,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -999,7 +1012,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('ignores non-string WebSocket messages', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1018,7 +1031,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('ignores invalid JSON messages', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1034,7 +1047,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('increments wsMessages counter for each message', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1072,7 +1085,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1089,7 +1102,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve({ ...defaultDeltaResponse(), globalRev: 5 }),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1104,7 +1117,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1136,7 +1149,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1175,7 +1188,7 @@ describe('useTmuxEventsSocket', () => {
           }),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       // Start first sync (it will hang until resolved)
       act(() => {
@@ -1215,7 +1228,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       // Do NOT open socket, so eventsSocketConnected remains false
       // Call syncActivityDelta without force
@@ -1234,7 +1247,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       await act(async () => {
         await result.current.syncActivityDelta({ reason: 'test', force: true })
@@ -1251,7 +1264,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1265,7 +1278,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.reject(new Error('network error')),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1294,7 +1307,7 @@ describe('useTmuxEventsSocket', () => {
           activePaneID: null,
         }) as TabsStateRef,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1312,7 +1325,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve({ ...defaultDeltaResponse(), globalRev: 42 }),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1355,7 +1368,7 @@ describe('useTmuxEventsSocket', () => {
     it('starts polling when WS is not connected', () => {
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       // The initial hook render triggers refreshAllState before WS connects
       expect(refreshSessions).toHaveBeenCalled()
@@ -1371,7 +1384,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('increments fallbackRefreshCount during polling', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       // The initial render increments it
       const countBefore = opts.runtimeMetricsRef.current.fallbackRefreshCount
@@ -1388,7 +1401,7 @@ describe('useTmuxEventsSocket', () => {
     it('stops fallback polling when WS connects', () => {
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       // Connect the WebSocket
       act(() => {
@@ -1417,7 +1430,7 @@ describe('useTmuxEventsSocket', () => {
         tokenRequired: true,
         refreshSessions,
       })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         vi.advanceTimersByTime(20_000)
@@ -1430,7 +1443,7 @@ describe('useTmuxEventsSocket', () => {
     it('resumes polling after WS disconnects', () => {
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       // Connect then disconnect
       act(() => {
@@ -1454,6 +1467,38 @@ describe('useTmuxEventsSocket', () => {
         callCountAfterDisconnect,
       )
     })
+
+    it('does not poll while the page is hidden and refreshes when visible again', async () => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        writable: true,
+        configurable: true,
+      })
+
+      const refreshSessions = vi.fn(() => Promise.resolve())
+      const opts = makeOptions({ refreshSessions })
+      renderEventsHook(opts)
+
+      expect(refreshSessions).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(8_100)
+      })
+
+      expect(refreshSessions).not.toHaveBeenCalled()
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        writable: true,
+        configurable: true,
+      })
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+
+      expect(refreshSessions).toHaveBeenCalled()
+    })
   })
 
   // -------------------------------------------------------------------------
@@ -1463,7 +1508,7 @@ describe('useTmuxEventsSocket', () => {
   describe('exponential backoff on reconnect', () => {
     it('reconnects after close with exponential backoff', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       const initialCount = MockWebSocket.instances.length
 
@@ -1489,7 +1534,7 @@ describe('useTmuxEventsSocket', () => {
     it('increases delay on successive reconnect failures', () => {
       const timeoutSpy = vi.spyOn(window, 'setTimeout')
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1540,7 +1585,7 @@ describe('useTmuxEventsSocket', () => {
     it('caps backoff delay at 30 seconds', () => {
       const timeoutSpy = vi.spyOn(window, 'setTimeout')
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1568,7 +1613,7 @@ describe('useTmuxEventsSocket', () => {
     it('resets reconnect attempts on successful open', () => {
       const timeoutSpy = vi.spyOn(window, 'setTimeout')
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1606,7 +1651,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('increments wsReconnects metric on each reconnect', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1628,7 +1673,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('does not reconnect after unmount', () => {
       const opts = makeOptions()
-      const { unmount } = renderHook(() => useTmuxEventsSocket(opts))
+      const { unmount } = renderEventsHook(opts)
 
       const socket = lastSocket()
       act(() => {
@@ -1658,7 +1703,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1700,7 +1745,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1739,7 +1784,7 @@ describe('useTmuxEventsSocket', () => {
       const refreshSessions = vi.fn(() => Promise.resolve())
       const refreshInspector = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions, refreshInspector })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1778,7 +1823,7 @@ describe('useTmuxEventsSocket', () => {
       mockedShouldRefreshSessions.mockReturnValue({ refresh: true })
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1806,7 +1851,7 @@ describe('useTmuxEventsSocket', () => {
       mockedShouldRefreshSessions.mockReturnValue({ refresh: false })
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1834,7 +1879,7 @@ describe('useTmuxEventsSocket', () => {
       mockedShouldRefreshSessions.mockReturnValue({ refresh: true })
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -1876,7 +1921,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1916,7 +1961,7 @@ describe('useTmuxEventsSocket', () => {
     it('triggers refreshAllState on online event when WS is disconnected', () => {
       const refreshSessions = vi.fn(() => Promise.resolve())
       const opts = makeOptions({ refreshSessions })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       const callsBefore = refreshSessions.mock.calls.length
 
@@ -1938,7 +1983,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -1987,7 +2032,7 @@ describe('useTmuxEventsSocket', () => {
         Promise.resolve(defaultDeltaResponse()),
       ) as unknown as ApiFunction
       const opts = makeOptions({ api })
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       await act(async () => {
         lastSocket().emitOpen()
@@ -2033,14 +2078,14 @@ describe('useTmuxEventsSocket', () => {
   describe('forceReconnect', () => {
     it('returns forceReconnect function from the hook', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       expect(typeof result.current.forceReconnect).toBe('function')
     })
 
     it('closes current socket and opens a new one', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       const firstSocket = lastSocket()
       act(() => {
@@ -2053,6 +2098,7 @@ describe('useTmuxEventsSocket', () => {
       act(() => {
         result.current.forceReconnect()
       })
+      advancePastConnectDelay()
 
       expect(firstSocket.closed).toBe(true)
       expect(MockWebSocket.instances.length).toBeGreaterThan(instancesBefore)
@@ -2061,7 +2107,7 @@ describe('useTmuxEventsSocket', () => {
     it('resets reconnect attempt counter', () => {
       const timeoutSpy = vi.spyOn(window, 'setTimeout')
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -2102,7 +2148,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('cancels pending retry timer before reconnecting', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -2119,6 +2165,7 @@ describe('useTmuxEventsSocket', () => {
       act(() => {
         result.current.forceReconnect()
       })
+      advancePastConnectDelay()
 
       // The force reconnect should have created exactly one new socket
       // (not two — the pending retry should have been cancelled)
@@ -2153,6 +2200,7 @@ describe('useTmuxEventsSocket', () => {
 
       // Enable authentication so that the effect will connect
       rerender({ authenticated: true })
+      advancePastConnectDelay()
 
       const instancesBefore = MockWebSocket.instances.length
       expect(instancesBefore).toBeGreaterThanOrEqual(1)
@@ -2161,13 +2209,14 @@ describe('useTmuxEventsSocket', () => {
       act(() => {
         result.current.forceReconnect()
       })
+      advancePastConnectDelay()
 
       expect(MockWebSocket.instances.length).toBeGreaterThan(instancesBefore)
     })
 
     it('prevents onclose handler from scheduling a retry after force close', () => {
       const opts = makeOptions()
-      const { result } = renderHook(() => useTmuxEventsSocket(opts))
+      const { result } = renderEventsHook(opts)
 
       act(() => {
         lastSocket().emitOpen()
@@ -2178,6 +2227,7 @@ describe('useTmuxEventsSocket', () => {
       act(() => {
         result.current.forceReconnect()
       })
+      advancePastConnectDelay()
 
       const instancesAfterForce = MockWebSocket.instances.length
 
@@ -2200,7 +2250,7 @@ describe('useTmuxEventsSocket', () => {
   describe('runtime metrics', () => {
     it('exposes metrics on window.__SENTINEL_TMUX_METRICS', () => {
       const opts = makeOptions()
-      renderHook(() => useTmuxEventsSocket(opts))
+      renderEventsHook(opts)
 
       const windowWithMetrics = window as typeof window & {
         __SENTINEL_TMUX_METRICS?: unknown
@@ -2212,7 +2262,7 @@ describe('useTmuxEventsSocket', () => {
 
     it('cleans up window.__SENTINEL_TMUX_METRICS on unmount', () => {
       const opts = makeOptions()
-      const { unmount } = renderHook(() => useTmuxEventsSocket(opts))
+      const { unmount } = renderEventsHook(opts)
 
       unmount()
 
