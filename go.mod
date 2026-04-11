@@ -31,3 +31,7 @@ require (
 
 // Personal fork of opus-domini/sentinel for local experimentation.
 // Upstream: https://github.com/opus-domini/sentinel
+//
+// Notes:
+//   - Exploring custom file-watch debounce intervals
+//   - golang.org/x/exp pinned to 20231206; bump carefully as API is unstable
