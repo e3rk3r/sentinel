@@ -40,3 +40,5 @@ require (
 //     to reduce spurious re-triggers on slow network-mounted filesystems
 //   - Bumped default debounce to 250ms in watcher.go (see commit history);
 //     seems stable so far on my NFS-mounted dev share with no obvious perf hit
+//   - TODO: look into whether golang.org/x/exp can be dropped entirely once
+//     Go 1.23 ships slices/maps into stdlib proper; would simplify the dep tree
