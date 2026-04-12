@@ -38,3 +38,5 @@ require (
 //     API stability before going further
 //   - TODO: experiment with raising the default debounce from 100ms to 250ms
 //     to reduce spurious re-triggers on slow network-mounted filesystems
+//   - Bumped default debounce to 250ms in watcher.go (see commit history);
+//     seems stable so far on my NFS-mounted dev share with no obvious perf hit
