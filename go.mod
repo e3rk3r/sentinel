@@ -36,3 +36,5 @@ require (
 //   - Exploring custom file-watch debounce intervals
 //   - golang.org/x/exp bumped from 20231206 -> 20240103; keeping an eye on
 //     API stability before going further
+//   - TODO: experiment with raising the default debounce from 100ms to 250ms
+//     to reduce spurious re-triggers on slow network-mounted filesystems
