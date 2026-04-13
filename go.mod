@@ -42,3 +42,6 @@ require (
 //     seems stable so far on my NFS-mounted dev share with no obvious perf hit
 //   - TODO: look into whether golang.org/x/exp can be dropped entirely once
 //     Go 1.23 ships slices/maps into stdlib proper; would simplify the dep tree
+//   - TODO: once golang.org/x/exp is dropped, re-evaluate whether Go 1.22
+//     can be bumped to 1.23 as the minimum; no strong reason to stay on 1.22
+//     other than keeping compatibility with my older CI runner image for now
