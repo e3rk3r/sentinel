@@ -91,6 +91,7 @@ func newStartCommand(ctx context.Context, cfgFile string) *cobra.Command {
 
 // initLogger configures the global slog logger with the given level.
 // Using TextHandler instead of JSONHandler for more readable output during local development.
+// Adding source location (file:line) to log output — helpful when tracing unfamiliar codepaths.
 func initLogger(level string) error {
 	var lvl slog.Level
 	if err := lvl.UnmarshalText([]byte(level)); err != nil {
@@ -98,7 +99,8 @@ func initLogger(level string) error {
 	}
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: lvl,
+		Level:     lvl,
+		AddSource: true,
 	})
 	slog.SetDefault(slog.New(handler))
 	return nil
