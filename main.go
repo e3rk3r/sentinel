@@ -90,13 +90,14 @@ func newStartCommand(ctx context.Context, cfgFile string) *cobra.Command {
 }
 
 // initLogger configures the global slog logger with the given level.
+// Using TextHandler instead of JSONHandler for more readable output during local development.
 func initLogger(level string) error {
 	var lvl slog.Level
 	if err := lvl.UnmarshalText([]byte(level)); err != nil {
 		return fmt.Errorf("invalid log level %q: %w", level, err)
 	}
 
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: lvl,
 	})
 	slog.SetDefault(slog.New(handler))
