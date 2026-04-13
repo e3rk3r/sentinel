@@ -56,7 +56,8 @@ watches over your infrastructure and notifies you when things go wrong.`,
 	}
 
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "path to config file (default: sentinel.yaml)")
-	cmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level (debug, info, warn, error)")
+	// Default to debug level for easier local development in this personal fork.
+	cmd.PersistentFlags().StringVar(&logLevel, "log-level", "debug", "log level (debug, info, warn, error)")
 
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newStartCommand(ctx, cfgFile))
