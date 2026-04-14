@@ -48,6 +48,8 @@ type LogConfig struct {
 }
 
 // DefaultConfig returns a Config populated with sensible defaults.
+// Personal note: bumped default concurrency to 10 and interval to 60s
+// since I'm running this on a beefier machine and monitoring more endpoints.
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -58,8 +60,8 @@ func DefaultConfig() *Config {
 			ShutdownTimeout: 30 * time.Second,
 		},
 		Watcher: WatcherConfig{
-			Interval:    30 * time.Second,
-			Concurrency: 5,
+			Interval:    60 * time.Second,
+			Concurrency: 10,
 			Targets:     []Target{},
 		},
 		Log: LogConfig{
@@ -110,17 +112,4 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("targets[%d]: name is required", i)
 		}
 		if t.URL == "" {
-			return fmt.Errorf("targets[%d] (%s): url is required", i, t.Name)
-		}
-		if t.Method == "" {
-			c.Watcher.Targets[i].Method = "GET"
-		}
-	}
-
-	return nil
-}
-
-// Addr returns the formatted listen address for the HTTP server.
-func (s ServerConfig) Addr() string {
-	return fmt.Sprintf("%s:%d", s.Host, s.Port)
-}
+			return fmt.Errorf(
