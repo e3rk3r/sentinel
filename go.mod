@@ -48,3 +48,5 @@ require (
 //   - Tested bumping go directive to 1.23 locally; CI runner (ubuntu-20.04)
 //     only has Go 1.22 toolchain installed, so holding off until I update the
 //     runner or pin a specific toolchain version in the workflow
+//   - Tried debounce at 500ms as well; felt sluggish during interactive use,
+//     250ms remains the sweet spot for my NFS share setup
