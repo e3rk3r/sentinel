@@ -45,3 +45,6 @@ require (
 //   - TODO: once golang.org/x/exp is dropped, re-evaluate whether Go 1.22
 //     can be bumped to 1.23 as the minimum; no strong reason to stay on 1.22
 //     other than keeping compatibility with my older CI runner image for now
+//   - Tested bumping go directive to 1.23 locally; CI runner (ubuntu-20.04)
+//     only has Go 1.22 toolchain installed, so holding off until I update the
+//     runner or pin a specific toolchain version in the workflow
