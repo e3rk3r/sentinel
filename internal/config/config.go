@@ -50,13 +50,15 @@ type LogConfig struct {
 // DefaultConfig returns a Config populated with sensible defaults.
 // Personal note: bumped default concurrency to 10 and interval to 60s
 // since I'm running this on a beefier machine and monitoring more endpoints.
+// Also bumped ReadTimeout to 10s and WriteTimeout to 20s — was hitting
+// occasional timeouts on slower endpoints in my homelab setup.
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
 			Host:            "0.0.0.0",
 			Port:            8080,
-			ReadTimeout:     5 * time.Second,
-			WriteTimeout:    10 * time.Second,
+			ReadTimeout:     10 * time.Second,
+			WriteTimeout:    20 * time.Second,
 			ShutdownTimeout: 30 * time.Second,
 		},
 		Watcher: WatcherConfig{
@@ -109,7 +111,12 @@ func (c *Config) Validate() error {
 
 	for i, t := range c.Watcher.Targets {
 		if t.Name == "" {
-			return fmt.Errorf("targets[%d]: name is required", i)
+			return fmt.Errorf("watcher.targets[%d].name must not be empty", i)
 		}
 		if t.URL == "" {
-			return fmt.Errorf(
+			return fmt.Errorf("watcher.targets[%d].url must not be empty", i)
+		}
+	}
+
+	return nil
+}
